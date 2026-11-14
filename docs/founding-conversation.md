@@ -1,0 +1,5 @@
+# Founding conversation (2026-11-13, lightly tidied)
+
+**Person:** I worked up this workout program for my wife and I to do every day after work (4 poster images: Day 1 Lower Body + Glutes, Day 2 Chest + Shoulders + Triceps, Day 3 Back & Biceps, Day 4 Core + Glutes + Posture). So far we are on the 4th day of doing all workouts, but only one set a day. We're thinking maybe next round we will do 2 sets a day, or maybe next week. Not sure.
+
+I want you to turn this into a WEBSITE that is high clarity, super easy to understand and navigate, so we can have it on the computer. We want a short YouTube Short for every exercise, preferably either 2 or 1 dumbbell, whichever is appropriate, and we don't have a bench. Find YouTube Shorts, or if not a short then a regular YouTube video, and make it so we can watch them all perfectly and seamlessly in this app, so we can just keep it on the screen and it will autoplay the workout routine. We want big control buttons, like the spacebar to stop and start, or Enter to say we did this one, now on to the next one, if it was full screen. Make it now please.
