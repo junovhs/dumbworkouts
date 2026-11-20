@@ -346,6 +346,7 @@
 
   // ---------- À LA CARTE ----------
   const AREAS = [
+    { id: "all", name: "Pick your own", color: "#eab308", blurb: "Browse every move and choose" },
     { id: "butt", name: "Butt", color: "#e8336b", blurb: "Bridges, hinges, squats, lunges and side glutes" },
     { id: "legs", name: "Legs", color: "#f08a24", blurb: "Quads, hamstrings and inner thighs" },
     { id: "core", name: "Core", color: "#14a39a", blurb: "Abs, obliques and lower back" },
@@ -365,7 +366,7 @@
     const banned = new Set(nope());
     return Object.keys(EX).filter((k) => !banned.has(k)).filter((k) => {
       const a = EX[k].areas || [];
-      if (area === "full") return true;
+      if (area === "full" || area === "all") return true;
       if (area === "upper") return a.some((x) => UPPER.includes(x));
       return a.includes(area);
     });
@@ -410,7 +411,7 @@
     return picks.filter(Boolean);
   }
 
-  let menuArea = 0, menuSet = [], menuDirty = false;
+  let menuArea = 1, menuSet = [], menuDirty = false;
   function openMenu() {
     stopPreview();
     show("menu");
@@ -425,7 +426,7 @@
     if (!force) sfx("move");
     const it = curItem();
     document.documentElement.style.setProperty("--accent", it.color);
-    menuSet = it.kind === "set" ? it.moves.filter((k) => EX[k]) : buildSet(it.id);
+    menuSet = it.kind === "set" ? it.moves.filter((k) => EX[k]) : it.id === "all" ? [] : buildSet(it.id);
     menuDirty = false;
     renderMenu();
   }
@@ -476,7 +477,7 @@
       </button>`).join("");
     $("areas").querySelectorAll(".area").forEach((b) => (b.onclick = () => selectArea(+b.dataset.i)));
     $("setTitle").textContent = area.kind === "set" ? area.name : `${area.name.replace("♥ ", "")} workout`;
-    $("setSub").textContent = `${menuSet.length} moves · ${settings.rounds} round${settings.rounds > 1 ? "s" : ""} · ${minutesFor(settings.rounds)}`;
+    $("setSub").textContent = menuSet.length ? `${menuSet.length} move${menuSet.length > 1 ? "s" : ""} · ${settings.rounds} round${settings.rounds > 1 ? "s" : ""} · ${minutesFor(settings.rounds, menuSet.length)}` : "";
     $("setList").innerHTML = menuSet.map((k, j) => {
       const e = EX[k], v = previewVideo(k);
       return `<li class="srow">
@@ -486,11 +487,14 @@
         <span class="spat">${PATTERN_LABEL[e.pattern] || ""}</span>
         <button class="sfav${fv.includes(k) ? " on" : ""}" data-k="${k}" title="Favorite">${fv.includes(k) ? "♥" : "♡"}</button>
         <button class="sswap" data-j="${j}" title="Swap for a similar move">↻</button>
+        <button class="sdel" data-j="${j}" title="Remove">✕</button>
       </li>`;
     }).join("");
     $("setList").querySelectorAll(".sswap").forEach((b) => (b.onclick = () => swapOne(+b.dataset.j)));
+    $("setList").querySelectorAll(".sdel").forEach((b) => (b.onclick = () => { menuSet.splice(+b.dataset.j, 1); menuDirty = true; sfx("tick"); renderMenu(); }));
     $("setList").querySelectorAll(".sfav").forEach((b) => (b.onclick = () => { toggleFav(b.dataset.k); sfx("tick"); renderMenu(); }));
-    if (!menuSet.length) $("setList").innerHTML = `<li class="sempty">${area.id === "favs" ? "No favorites yet. Pick any body area and tap ♡ on the moves you like, or press H during a workout." : "Nothing here."}</li>`;
+    if (!menuSet.length) $("setList").innerHTML = `<li class="sempty">${area.id === "favs" ? "No favorites yet. Pick any body area and tap ♡ on the moves you like, or press H during a workout." : `Nothing picked yet. <button class="hud-btn" id="emptyAdd">＋ Browse all ${poolFor("all").length} moves <kbd>A</kbd></button>`}</li>`;
+    if ($("emptyAdd")) $("emptyAdd").onclick = openPicker;
     $("saveSetBtn").innerHTML = area.kind === "set" ? `✓ Save changes <kbd>S</kbd>` : `♥ Save set <kbd>S</kbd>`;
     $("saveSetBtn").disabled = area.kind === "set" ? !menuDirty : !menuSet.length;
     $("delSetBtn").classList.toggle("hidden", area.kind !== "set");
@@ -501,6 +505,58 @@
     $("setMuscles").innerHTML = [...pri].map((m) => `<span class="mchip pri">${MUS[m].name}</span>`).join("") + [...sec].map((m) => `<span class="mchip">${MUS[m].name}</span>`).join("");
     segmented($("menuRounds"), [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (r) => { settings.rounds = r; save("rounds"); renderMenu(); });
   }
+  // ---------- browse every move ----------
+  let pickFilter = "all";
+  const PICK_ORDER = ["squat", "lunge", "hinge", "bridge", "side", "kickback", "core", "push", "pull", "arms"];
+  const pickerOpen = () => !$("picker").classList.contains("hidden");
+  function openPicker() {
+    $("picker").classList.remove("hidden");
+    $("pickSearch").value = "";
+    sfx("tick");
+    renderPicker();
+    $("pickSearch").focus();
+  }
+  function closePicker() { $("picker").classList.add("hidden"); $("pickSearch").blur(); renderMenu(); }
+  function togglePick(k) {
+    const i = menuSet.indexOf(k);
+    if (i >= 0) menuSet.splice(i, 1); else menuSet.push(k);
+    menuDirty = true; sfx("tick");
+    renderPicker();
+  }
+  function renderPicker() {
+    const filters = [["all", "All"], ...AREAS.filter((a) => !["all", "full"].includes(a.id)).map((a) => [a.id, a.name])];
+    $("pickFilters").innerHTML = filters.map(([id, name]) => `<button class="${id === pickFilter ? "on" : ""}" data-f="${id}">${name}</button>`).join("");
+    $("pickFilters").querySelectorAll("button").forEach((b) => (b.onclick = () => { pickFilter = b.dataset.f; renderPicker(); }));
+    const q = $("pickSearch").value.trim().toLowerCase();
+    const keys = poolFor(pickFilter).filter((k) => {
+      if (!q) return true;
+      const e = EX[k];
+      return [e.name, PATTERN_LABEL[e.pattern] || "", ...e.primary.map((m) => MUS[m].name), ...e.secondary.map((m) => MUS[m].name)].join(" ").toLowerCase().includes(q);
+    });
+    const fv = favs();
+    const groups = PICK_ORDER.map((p) => [p, keys.filter((k) => EX[k].pattern === p)]).filter(([, ks]) => ks.length);
+    $("pickCount").textContent = `${menuSet.length} in your workout`;
+    $("pickGrid").innerHTML = groups.map(([p, ks]) => `<h3 class="pick-h">${PATTERN_LABEL[p]} <span>${ks.length}</span></h3>
+      <div class="pick-row">${ks.map((k) => {
+        const e = EX[k], n = menuSet.indexOf(k) + 1;
+        return `<button class="pcard${n ? " on" : ""}" data-k="${k}">
+          <img loading="lazy" alt="" data-k="${k}">
+          ${n ? `<span class="pnum">${n}</span>` : ""}${fv.includes(k) ? '<span class="pfav">♥</span>' : ""}
+          <b>${e.name}</b>
+          <span>${e.reps} · ${dumbbellText(e.dumbbells)}</span>
+          <span class="pmus">${e.primary.map((m) => MUS[m].name).join(", ")}</span>
+          <em>${n ? "✓ Added" : "＋ Add"}</em>
+        </button>`;
+      }).join("")}</div>`).join("") || `<div class="sempty">No moves match "${q.replace(/[<>&]/g, "")}".</div>`;
+    $("pickGrid").querySelectorAll(".pcard").forEach((b) => (b.onclick = () => togglePick(b.dataset.k)));
+    $("pickGrid").querySelectorAll("img").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
+  }
+  $("pickSearch").addEventListener("input", renderPicker);
+  $("pickSearch").addEventListener("keydown", (e) => { if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); closePicker(); } });
+  $("pickDone").onclick = closePicker;
+  $("picker").addEventListener("click", (e) => { if (e.target === $("picker")) closePicker(); });
+  $("addBtn").onclick = openPicker;
+
   function startMenuSet() {
     if (!menuSet.length) return;
     const a = curItem(), name = a.name.replace("♥ ", "");
@@ -1185,7 +1241,13 @@
       return;
     }
     if (view === "menu") {
+      if (pickerOpen()) {
+        if (k === "Escape" || k === "Enter") { e.preventDefault(); closePicker(); }
+        else if (k === "/") { e.preventDefault(); $("pickSearch").focus(); }
+        return;
+      }
       const act = {
+        a: openPicker, A: openPicker,
         ArrowUp: () => selectArea(menuArea - 1), ArrowDown: () => selectArea(menuArea + 1),
         ArrowLeft: () => selectArea(menuArea - 1), ArrowRight: () => selectArea(menuArea + 1),
         r: reshuffle, R: reshuffle, Enter: startMenuSet, " ": startMenuSet, s: saveSet, S: saveSet, Delete: deleteSet,

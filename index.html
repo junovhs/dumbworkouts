@@ -82,6 +82,7 @@
         <ol class="set-list" id="setList"></ol>
         <div class="set-actions">
           <div class="set-tools">
+            <button class="hud-btn" id="addBtn">＋ Add moves <kbd>A</kbd></button>
             <button class="hud-btn" id="shuffleBtn">↻ Shuffle <kbd>R</kbd></button>
             <button class="hud-btn" id="saveSetBtn">♥ Save set <kbd>S</kbd></button>
             <button class="hud-btn hidden" id="delSetBtn">🗑 Delete <kbd>Del</kbd></button>
@@ -95,8 +96,20 @@
         <div class="mchips" id="setMuscles"></div>
       </aside>
     </div>
+    <div class="picker hidden" id="picker">
+      <div class="picker-card">
+        <div class="picker-head">
+          <h2>All exercises</h2>
+          <input id="pickSearch" type="search" placeholder="Search a move or muscle…" autocomplete="off">
+          <span class="pick-count" id="pickCount"></span>
+          <button class="big-btn" id="pickDone">Done <kbd>Esc</kbd></button>
+        </div>
+        <div class="seg pick-filters" id="pickFilters"></div>
+        <div class="pick-grid" id="pickGrid"></div>
+      </div>
+    </div>
     <footer class="key-hints menu-keys">
-      <span><kbd>▲</kbd><kbd>▼</kbd> Body area</span><span><kbd>R</kbd> Shuffle</span><span><kbd>S</kbd> Save set</span><span><kbd>1</kbd>–<kbd>3</kbd> Rounds</span><span><kbd>Enter</kbd> Start</span>
+      <span><kbd>▲</kbd><kbd>▼</kbd> Body area</span><span><kbd>A</kbd> Browse all moves</span><span><kbd>R</kbd> Shuffle</span><span><kbd>S</kbd> Save set</span><span><kbd>1</kbd>–<kbd>3</kbd> Rounds</span><span><kbd>Enter</kbd> Start</span>
     </footer>
   </main>
 
