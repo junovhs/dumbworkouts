@@ -4,10 +4,50 @@
   const EX = window.EXERCISES, DAYS = window.DAYS;
 
   // ---------- persisted settings ----------
+  // ?demo keeps its own sample data under "demo:" so it never touches the visitor's real progress.
+  const DEMO = new URLSearchParams(location.search).has("demo");
+  const NS = DEMO ? "demo:" : "";
   const store = {
-    get<T>(k: string, d: T): T { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-    set<T>(k: string, v: T): void { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    get<T>(k: string, d: T): T { try { const v = localStorage.getItem(NS + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set<T>(k: string, v: T): void { try { localStorage.setItem(NS + k, JSON.stringify(v)); } catch {} },
   };
+  if (DEMO) seedDemo();
+
+  // Fresh sample data on every demo visit: a booty-focus plan, ~8 weeks of workouts, favorites and a saved set.
+  function seedDemo() {
+    try { Object.keys(localStorage).filter((k) => k.startsWith("demo:")).forEach((k) => localStorage.removeItem(k)); } catch {}
+    const answers: PlanAnswers = { level: "back", focus: "booty", perWeek: 4, dumbbells: 2, moves: 5, skip: [], variety: "weekly" };
+    const p = window.PLANNER.generate({ ...answers, likes: [], dislikes: [] });
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const hist: WorkoutHistory[] = [];
+    const today = new Date(new Date().toDateString());
+    let n = 0;
+    for (let back = 56; back >= 1; back--) {
+      const d = new Date(today); d.setDate(d.getDate() - back);
+      const dow = d.getDay(), week = Math.floor((56 - back) / 7);
+      const planned = [1, 2, 4, 6].includes(dow);
+      if (!(planned ? rnd() < (week < 2 ? 0.7 : 0.92) : rnd() < 0.06)) continue;
+      d.setHours(7 + Math.floor(rnd() * 12), Math.floor(rnd() * 60));
+      const rounds = week < 3 ? 1 : week < 6 ? 2 : 3;
+      const feel = rnd() < 0.2 ? "easy" : rnd() < 0.85 ? "right" : "hard";
+      if (rnd() < 0.15) {
+        hist.push({ day: null, prog: null, custom: "Butt", title: "Butt (à la carte)", color: "#e8336b", moves: 5, rounds,
+          date: d.toISOString(), minutes: 7 * rounds + Math.floor(rnd() * 4), feel });
+      } else {
+        const day = p.days[n++ % p.days.length];
+        hist.push({ day: day.n, prog: p.id, title: day.title, color: day.color, moves: day.moves.length, rounds,
+          date: d.toISOString(), minutes: 7 * rounds + Math.floor(rnd() * 4), feel });
+      }
+    }
+    const moves = p.days.flatMap((d) => d.moves);
+    store.set("plan", p);
+    store.set("planAnswers", answers);
+    store.set("history", hist);
+    store.set("rounds", 2);
+    store.set("favs", [...new Set(moves)].slice(0, 4));
+    store.set("sets", [{ id: "demo-set", name: "Glute burner", area: "butt", color: "#e8336b", moves: [...new Set(moves)].slice(0, 5) }]);
+  }
   const settings: WorkoutSettings = {
     rounds: store.get("rounds", 1),
     rest: store.get("rest", 30),
@@ -98,8 +138,10 @@
 
   // ---------- views ----------
   let view = "home";
+  document.body.dataset.view = view;
   function show(v) {
     view = v;
+    document.body.dataset.view = v;
     for (const id of ["home", "menu", "wizard", "calendar", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
     if (v === "home") startPreview(); else stopPreview();
   }
@@ -1225,6 +1267,12 @@
     if ((e.target as HTMLElement).tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
     if (view === "home") {
+      if (welcomeOpen()) {
+        if (k === "Escape" || k === "Enter" || k === "?") { e.preventDefault(); closeWelcome(); }
+        else if (/^[1-4]$/.test(k)) { e.preventDefault(); pickTile(+k - 1); }
+        return;
+      }
+      if (k === "?" || k === "/") { e.preventDefault(); openWelcome(); return; }
       if (sheetOpen()) {
         if (k === "Escape" || k === "s" || k === "S") { e.preventDefault(); toggleSheet(false); }
         return;
@@ -1317,8 +1365,49 @@
   $("sheetClose").onclick = () => toggleSheet(false);
   $("sheet").addEventListener("click", (e) => { if ((e.target as HTMLElement).id === "sheet") toggleSheet(false); });
 
+  // ---------- WELCOME: show a first-time visitor what's here instead of dropping them into the wizard ----------
+  const welcomeOpen = () => !$("welcome").classList.contains("hidden");
+  const TILES = [
+    { title: "Try a workout", text: "A demo video for every move, timers, countdown beeps and a body map of what it works. Hands-free: Space pauses.",
+      move: "gobletSquat", color: "#e8336b", go: () => startSession(program()[0]) },
+    { title: "Build my plan", text: "Four quick taps make a weekly rotation. Rate how it felt, ♥ moves you love, skip ones you don't. It adapts.",
+      move: "couchHipThrust", color: PLAN_CARD.color, go: openWizard },
+    { title: "À la carte", text: `Pick Butt, Legs, Core, Arms… and get a balanced set, or browse all ${Object.keys(EX).length} moves and build your own.`,
+      move: "fireHydrant", color: MENU_CARD.color, go: openMenu },
+    { title: "Progress", text: "A calendar of every workout, day streaks, your weekly goal and how each workout felt.",
+      move: "deadBug", color: "#3b82f6", go: openCalendar },
+  ];
+  function openWelcome() {
+    stopPreview();
+    $("welcomeKicker").textContent = DEMO ? "DEMO · SAMPLE DATA" : "WELCOME";
+    $("welcomeTiles").innerHTML = TILES.map((t, i) => `
+      <button class="wtile" data-i="${i}" style="--c:${t.color}">
+        <img alt=""><span class="wtile-shade"></span>
+        <span class="wtile-body"><b><kbd>${i + 1}</kbd> ${t.title}</b><span>${t.text}</span></span>
+      </button>`).join("");
+    $("welcomeTiles").querySelectorAll<UIElement>(".wtile").forEach((b) => {
+      const t = TILES[+b.dataset.i];
+      setImg(b.querySelector("img"), previewVideo(t.move));
+      b.onclick = () => pickTile(+b.dataset.i);
+    });
+    $("welcomeDemo").innerHTML = DEMO
+      ? `This is a demo with 8 weeks of made-up workouts so you can see everything filled in. <a href="./">Start for real →</a>`
+      : `Want to see it after a couple of months of use? <a href="?demo">Open the demo with sample progress →</a>`;
+    $("welcome").classList.remove("hidden");
+  }
+  function closeWelcome() { $("welcome").classList.add("hidden"); startPreview(); }
+  function pickTile(i) { $("welcome").classList.add("hidden"); sfx("start"); TILES[i].go(); }
+  $("welcomeClose").onclick = closeWelcome;
+  $("welcome").addEventListener("click", (e) => { if ((e.target as HTMLElement).id === "welcome") closeWelcome(); });
+  $("tourBtn").onclick = openWelcome;
+
   renderHome();
-  if (!plan && !history().length && !store.get("wizardSeen", false)) { store.set("wizardSeen", true); openWizard(); }
+  if (DEMO) {
+    const tag = document.createElement("a");
+    tag.className = "demo-tag"; tag.href = "./"; tag.textContent = "DEMO · sample data · start for real →";
+    document.body.appendChild(tag);
+  }
+  if (DEMO || (!plan && !history().length && !store.get("welcomeSeen", false))) { store.set("welcomeSeen", true); openWelcome(); }
   setInterval(tick, 100);
 
   // exposed for quick testing in the console

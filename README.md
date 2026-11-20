@@ -2,6 +2,12 @@
 
 Guided, hands-free dumbbell workout player with a YouTube demo for every move. Four quick questions build a personal plan (or keep the classic Days 1–4); it then learns from how workouts felt, ♥ favorites and moves you skip.
 
+## Show it off
+
+Send people **https://dumbworkouts.pages.dev/?demo**. It opens with 8 weeks of made-up workouts, a plan, favorites and a saved set, so the calendar and plan look lived-in. Demo data is kept separately (`demo:` keys) and reset on every visit, so it never touches real progress.
+
+First-time visitors on the normal link get a welcome screen with four tiles (try a workout, build a plan, à la carte, progress) instead of being dropped into the plan wizard. Press `?` or Tour on the start page to see it again.
+
 ## Run it
 
 ```bash

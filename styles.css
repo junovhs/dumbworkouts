@@ -35,7 +35,7 @@ kbd {
 
 /* ---------------- HOME ---------------- */
 #home { position: relative; height: 100vh; min-height: 560px; overflow: hidden; display: grid; grid-template-rows: auto 1fr auto; }
-#home > *:not(.ambient):not(.sheet) { position: relative; z-index: 1; }
+#home > *:not(.ambient):not(.sheet):not(.welcome) { position: relative; z-index: 1; }
 
 .hud-top { display: flex; justify-content: space-between; align-items: center; padding: 22px 32px 0; gap: 20px; }
 .logo { font: italic 800 30px/1 var(--display); letter-spacing: .02em; }
@@ -502,3 +502,37 @@ kbd {
   .set-actions .big-btn { flex: 1 1 100%; justify-content: center; }
   .setbox { padding: 16px 12px; }
 }
+
+/* ---------------- WELCOME (first visit, ? key, ?demo) ---------------- */
+.welcome { position: fixed; inset: 0; z-index: 45; background: rgba(0,0,0,.72); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 20px 16px; overflow: auto; }
+.welcome-card { width: min(1040px, 100%); max-height: calc(100vh - 40px); overflow: auto; background: #0d0d10; border: 1px solid var(--line); border-radius: 24px; padding: 30px 32px 26px; box-shadow: 0 40px 120px rgba(0,0,0,.85); animation: rise .35s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+.welcome-kicker { font: 800 15px var(--display); letter-spacing: .2em; color: var(--accent); }
+.welcome-card h2 { font: 800 clamp(30px, 4.4vw, 52px)/1 var(--display); text-transform: uppercase; margin: 6px 0 10px; }
+.welcome-sub { color: var(--muted); margin: 0 0 20px; max-width: 62ch; line-height: 1.5; }
+.welcome-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.wtile { position: relative; display: flex; align-items: flex-end; min-height: 300px; padding: 0; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: #18181c; text-align: left; transition: transform .18s, border-color .18s, box-shadow .18s; }
+.wtile:hover, .wtile:focus-visible { transform: translateY(-4px); border-color: var(--c); box-shadow: 0 18px 50px color-mix(in srgb, var(--c) 35%, transparent); outline: none; }
+.wtile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .75; transition: opacity .18s, transform .4s; }
+.wtile:hover img { opacity: .9; transform: scale(1.04); }
+.wtile-shade { position: absolute; inset: 0; background: linear-gradient(transparent 20%, rgba(0,0,0,.6) 50%, #000 92%); }
+.wtile-body { position: relative; display: grid; gap: 8px; padding: 16px; }
+.wtile-body b { display: flex; align-items: center; gap: 10px; font: 800 26px/1 var(--display); text-transform: uppercase; color: #fff; }
+.wtile-body b kbd { background: var(--c); color: #000; border-color: transparent; }
+.wtile-body span { font-size: 13.5px; line-height: 1.45; color: rgba(255,255,255,.78); }
+.welcome-demo { margin: 18px 0 0; color: var(--muted); font-size: 14px; }
+.welcome-demo a, .demo-tag { color: var(--accent); font-weight: 700; text-decoration: none; }
+.welcome-demo a:hover, .demo-tag:hover { text-decoration: underline; }
+.welcome-actions { display: flex; justify-content: flex-end; margin-top: 14px; }
+.demo-tag { position: fixed; left: 50%; bottom: 8px; transform: translateX(-50%); z-index: 30; background: rgba(0,0,0,.75); border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px; font-size: 12px; letter-spacing: .04em; white-space: nowrap; }
+@media (max-width: 900px) {
+  .welcome-tiles { grid-template-columns: repeat(2, 1fr); }
+  .wtile { min-height: 230px; }
+}
+@media (max-width: 560px) {
+  .welcome-card { padding: 22px 18px; }
+  .welcome-tiles { grid-template-columns: 1fr; }
+  .wtile { min-height: 150px; }
+  .wtile-body b kbd { display: none; }
+}
+body:not([data-view="home"]) .demo-tag { display: none; }
