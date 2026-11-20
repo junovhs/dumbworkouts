@@ -375,7 +375,7 @@
   // pick one from candidates, preferring ones not in `avoid`
   const pickFrom = (cands: string[], avoid: Set<string>): string | undefined => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
 
-  function buildSet(area, avoid = new Set(), size = 5) {
+  function buildSet(area: string, avoid = new Set<string>(), size = 5) {
     const pool = poolFor(area), used = new Set();
     const take = (filter) => {
       const k = pickFrom(pool.filter((x) => !used.has(x) && filter(EX[x])), avoid);
@@ -908,7 +908,7 @@
       });
     });
   }
-  function cyclePreview(gen, p, day) {
+  function cyclePreview(gen: number, p: HTMLElement, day: WorkoutDay) {
     if (gen !== previewGen || !preview) return;
     previewIdx = (previewIdx + 1) % day.moves.length;
     const v = previewVideo(day.moves[previewIdx]);
@@ -918,7 +918,7 @@
     markPreviewMove(p, previewIdx);
     setTimeout(() => { if (gen === previewGen && preview) preview.loadVideoById(v.id); }, 350);
   }
-  function markPreviewMove(p, j) {
+  function markPreviewMove(p: HTMLElement, j: number) {
     p.querySelectorAll<HTMLElement>(".p-moves li").forEach((li) => li.classList.toggle("on", +li.dataset.j === j));
   }
 
