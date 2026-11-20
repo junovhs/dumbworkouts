@@ -417,40 +417,74 @@
   // pick one from candidates, preferring ones not in `avoid`
   const pickFrom = (cands: string[], avoid: Set<string>): string | undefined => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
 
+  // Muscles each area should light up on the body map. Sets are scored on covering all of them
+  // (worked as a main or secondary muscle), then on how many are main muscles, then on variety.
+  const AREA_TARGETS: Record<string, string[]> = {
+    full: Object.keys(MUS),
+    upper: ["chest", "shoulders", "upperBack", "lats", "rearDelts", "traps", "biceps", "triceps", "forearms"],
+    arms: ["biceps", "triceps", "forearms", "shoulders"],
+    core: ["abs", "obliques", "lowerBack"],
+    legs: ["quads", "hamstrings", "glutes", "adductors", "sideGlutes", "calves"],
+    butt: ["glutes", "sideGlutes", "hamstrings", "adductors", "quads"],
+  };
+  const muscleSets = (set: string[]) => {
+    const pri = new Set(set.flatMap((k) => EX[k].primary));
+    return { pri, any: new Set([...pri, ...set.flatMap((k) => EX[k].secondary)]) };
+  };
+  function targetsFor(area: string, pool: string[]) {
+    const reach = muscleSets(pool).any;
+    return (AREA_TARGETS[area] || [...reach]).filter((m) => reach.has(m));
+  }
+  function coverScore(set: string[], targets: string[], avoid: Set<string>) {
+    const { pri, any } = muscleSets(set);
+    return targets.filter((m) => any.has(m)).length * 100 + targets.filter((m) => pri.has(m)).length * 10 +
+      new Set(set.map((k) => EX[k].pattern)).size * 4 - set.filter((k) => avoid.has(k)).length * 15;
+  }
+  const SHOW_ORDER = ["squat", "lunge", "hinge", "bridge", "push", "pull", "arms", "kickback", "side", "core"];
+  const byPattern = (a: string, b: string) => SHOW_ORDER.indexOf(EX[a].pattern) - SHOW_ORDER.indexOf(EX[b].pattern);
+
+  // Try many random candidate sets and keep the one that covers the area best (ties keep the first, so shuffles vary).
   function buildSet(area: string, avoid = new Set<string>(), size = 5) {
-    const pool = poolFor(area), used = new Set();
+    const pool = poolFor(area);
+    if (pool.length <= size) return [...pool].sort(byPattern);
+    const targets = targetsFor(area, pool);
+    const cands = Array.from({ length: 150 }, () => candidateSet(area, pool, targets, avoid, size))
+      .map((set) => ({ set, s: coverScore(set, targets, avoid) }));
+    const top = Math.max(...cands.map((c) => c.s));
+    // full coverage is required (each muscle is worth 100); among those, anything close to the best is fair game
+    const good = cands.filter((c) => c.s >= top - 25);
+    return good[Math.floor(Math.random() * good.length)].set;
+  }
+  function candidateSet(area: string, pool: string[], targets: string[], avoid: Set<string>, size: number): string[] {
+    if (area === "butt") return buttCandidate(pool, avoid, size);
+    // randomized greedy: a random first move, then each next move adds the most coverage
+    const order = shuffle(pool), picks = [order[0]];
+    while (picks.length < size) {
+      let k = null, ks = -Infinity;
+      for (const c of order) {
+        if (picks.includes(c)) continue;
+        const s = coverScore([...picks, c], targets, avoid);
+        if (s > ks) { k = c; ks = s; }
+      }
+      if (!k) break;
+      picks.push(k);
+    }
+    return picks.sort(byPattern);
+  }
+  function buttCandidate(pool: string[], avoid: Set<string>, size: number) {
+    const used = new Set();
     const take = (filter) => {
       const k = pickFrom(pool.filter((x) => !used.has(x) && filter(EX[x])), avoid);
       if (k) used.add(k);
       return k;
     };
-    let picks = [];
-    if (area === "butt") {
-      // always a hinge, a bridge and a side-glute move, plus two of squat / single-leg / isolation
-      const extra = shuffle(["squat", "lunge", "squat", "lunge", "kickback"]);
-      const pats = ["hinge", "bridge", "side"];
-      for (const p of extra) if (pats.length < size && !pats.includes(p)) pats.push(p);
-      const ORDER = ["squat", "hinge", "lunge", "bridge", "kickback", "side"];
-      pats.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
-      picks = pats.map((p) => take((e) => e.pattern === p));
-    } else if (area === "full") {
-      const slots = [(e) => ["squat", "lunge"].includes(e.pattern), (e) => ["hinge", "bridge"].includes(e.pattern), (e) => e.pattern === "push", (e) => e.pattern === "pull", (e) => e.pattern === "core"];
-      picks = slots.map(take);
-    } else {
-      // greedy: each next move adds the most main muscles not covered yet
-      const covered = new Set();
-      while (picks.length < size) {
-        const cands = shuffle(pool.filter((k) => !used.has(k)));
-        if (!cands.length) break;
-        const score = (k) => EX[k].primary.filter((m) => !covered.has(m)).length * 10 - (avoid.has(k) ? 5 : 0);
-        cands.sort((a, b) => score(b) - score(a));
-        const k = cands[0];
-        used.add(k); picks.push(k);
-        EX[k].primary.forEach((m) => covered.add(m));
-      }
-      picks.sort((a, b) => EX[b].primary.length - EX[a].primary.length);
-    }
-    return picks.filter(Boolean);
+    // always a hinge, a bridge and a side-glute move, plus two of squat / single-leg / isolation
+    const extra = shuffle(["squat", "lunge", "squat", "lunge", "kickback"]);
+    const pats = ["hinge", "bridge", "side"];
+    for (const p of extra) if (pats.length < size && !pats.includes(p)) pats.push(p);
+    const ORDER = ["squat", "hinge", "lunge", "bridge", "kickback", "side"];
+    pats.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+    return pats.map((p) => take((e) => e.pattern === p)).filter(Boolean);
   }
 
   let menuArea = 1, menuSet: string[] = [], menuDirty = false;
@@ -506,9 +540,12 @@
   function swapOne(j) {
     const area = curItem().area || curItem().id, cur = menuSet[j], pat = EX[cur].pattern;
     const pool = poolFor(area).filter((k) => !menuSet.includes(k));
-    const same = pool.filter((k) => EX[k].pattern === pat);
-    const k = pickFrom(same.length ? same : pool, new Set());
-    if (!k) { sfx("edge"); return; }
+    if (!pool.length) { sfx("edge"); return; }
+    // the replacement that keeps the set's coverage best; same movement pattern breaks ties, then random
+    const targets = targetsFor(area, poolFor(area)), rest = menuSet.filter((_, i) => i !== j);
+    const score = (c: string) => coverScore([...rest, c], targets, new Set()) + (EX[c].pattern === pat ? 8 : 0);
+    const cands = shuffle(pool);
+    const k = cands.reduce((a, b) => (score(b) > score(a) ? b : a));
     menuSet[j] = k; menuDirty = true; sfx("tick"); renderMenu();
   }
   function renderMenu() {
