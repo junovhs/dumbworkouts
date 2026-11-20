@@ -125,7 +125,7 @@
   }
 
   function weekKey(date: Date): string {
-    const d = new Date(date); d.setHours(0, 0, 0, 0);
+    const d = new Date(date.getTime()); d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // back to Monday
     return d.toISOString().slice(0, 10);
   }
