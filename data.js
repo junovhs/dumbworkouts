@@ -59,27 +59,27 @@ window.EXERCISES = {
   bentOverRow: {
     name: "Bent-Over Row", dumbbells: 2, reps: "10–12 reps", muscles: ["Upper Back", "Lats", "Biceps"],
     cues: ["Flat back, hinge at hips", "Drive elbows toward hips"],
-    video: { id: "6gvmcqr226U", shape: "wide" }, alts: [{ id: "HUp6djHa37Y", shape: "wide" }, { id: "iCM5U0_b9Mg", shape: "wide" }],
+    video: { id: "K0lda9eQfNo", shape: "tall" }, alts: [{ id: "vN8xskk-7G8", shape: "tall" }, { id: "6gvmcqr226U", shape: "wide" }, { id: "IOOLhrkN_NI", shape: "tall" }],
   },
   oneArmRow: {
     name: "One-Arm Row (no bench)", dumbbells: 1, reps: "10 reps each side", muscles: ["Mid-Back", "Lats", "Biceps"],
     cues: ["Free hand on your knee or a chair", "Pull elbow back", "Keep torso still"],
-    video: { id: "ISllYtUfAx4", shape: "tall" }, alts: [{ id: "tDgQx0W1JP0", shape: "wide" }, { id: "Pw3glZCQMGM", shape: "tall" }],
+    video: { id: "Sxqw-AoClcI", shape: "tall" }, alts: [{ id: "IbWwSHwGEJ8", shape: "tall" }, { id: "L_aTduY-mSg", shape: "tall" }, { id: "tDgQx0W1JP0", shape: "wide" }],
   },
   rearDeltFly: {
     name: "Rear Delt Fly", dumbbells: 2, reps: "12–15 reps", muscles: ["Upper Back", "Rear Shoulders"],
     cues: ["Soft bend in elbows", "Lift arms wide", "Squeeze shoulder blades"],
-    video: { id: "Fnz4v8WA5kM", shape: "wide" }, alts: [{ id: "lFJBHzGIKIE", shape: "wide" }, { id: "X-iWEQx9X-o", shape: "wide" }],
+    video: { id: "M3udJ4o7ndU", shape: "tall" }, alts: [{ id: "apcNuGp97sY", shape: "tall" }, { id: "__xmBVfQMLc", shape: "tall" }, { id: "62IAwMoHawI", shape: "tall" }],
   },
   hammerCurl: {
     name: "Hammer Curl", dumbbells: 2, reps: "10–12 reps", muscles: ["Biceps", "Forearms"],
     cues: ["Palms face in", "Keep elbows close to body"],
-    video: { id: "VqoFbCmRyyk", shape: "tall" }, alts: [{ id: "OPqe0kCxmR8", shape: "wide" }, { id: "VXj0Zx4v5go", shape: "wide" }],
+    video: { id: "0qzSDAfBzSw", shape: "tall" }, alts: [{ id: "VqoFbCmRyyk", shape: "tall" }, { id: "EXzrRuekzLU", shape: "tall" }, { id: "vm0zV_WQerE", shape: "tall" }],
   },
   concentrationCurl: {
     name: "Concentration Curl", dumbbells: 1, reps: "10 reps each side", muscles: ["Biceps"],
     cues: ["Sit on a chair or couch edge", "Brace elbow on inner thigh", "Curl with control"],
-    video: { id: "cHxRJdSVIkA", shape: "tall" }, alts: [{ id: "VMbDQ8PZazY", shape: "wide" }, { id: "nMIGb5-ytRE", shape: "wide" }],
+    video: { id: "5Jv-CYmT25E", shape: "tall" }, alts: [{ id: "0CWxnhSyPtU", shape: "tall" }, { id: "VMbDQ8PZazY", shape: "wide" }, { id: "TYrurDZTj9I", shape: "tall" }],
   },
   deadBug: {
     name: "Dead Bug", dumbbells: 0, reps: "8 reps each side", muscles: ["Deep Core", "Coordination"],
