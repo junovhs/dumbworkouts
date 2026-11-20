@@ -78,6 +78,32 @@
     if (v === "home") startPreview(); else stopPreview();
   }
 
+  // ---------- muscles + body map ----------
+  const MUS = window.MUSCLES;
+  const NEUTRAL = new Set(["head", "neck", "knees"]);
+  function bodyMap(primary, secondary) {
+    const lit = new Map();
+    for (const m of secondary) for (const r of MUS[m].regions) lit.set(r, "sec");
+    for (const m of primary) for (const r of MUS[m].regions) lit.set(r, "pri");
+    const fig = (side, h) =>
+      `<svg class="bm" viewBox="0 0 100 ${h}" aria-hidden="true">` +
+      window.BODY_MAP[side].map(([r, pts]) => pts.map((pt) => `<polygon points="${pt}"${lit.has(r) ? ` class="${lit.get(r)}"` : NEUTRAL.has(r) ? ' class="skin"' : ""}/>`).join("")).join("") +
+      `</svg>`;
+    return `<div class="bm-figs"><div>${fig("front", 200)}<span>Front</span></div><div>${fig("back", 220)}<span>Back</span></div></div>`;
+  }
+  const cardCache = new Map();
+  function muscleCard(e) {
+    if (!cardCache.has(e)) {
+      cardCache.set(e, `${bodyMap(e.primary, e.secondary)}
+        <div class="mlist">
+          ${e.primary.map((m) => `<div class="mrow"><b>${MUS[m].name}</b><span>${MUS[m].does}</span></div>`).join("")}
+          ${e.secondary.length ? `<div class="malso">Also works: ${e.secondary.map((m) => MUS[m].name).join(" · ")}</div>` : ""}
+        </div>`);
+    }
+    return cardCache.get(e);
+  }
+  window.__bodyMap = bodyMap;
+
   // ---------- HOME: 3D carousel ----------
   const dumbbellText = (n) => (n === 0 ? "No weight" : n === 1 ? "1 dumbbell" : "2 dumbbells");
   const minutesFor = (r) => ["", "9–10 min", "14–15 min", "18–20 min"][r] || "";
@@ -368,7 +394,8 @@
     $("phase").textContent = isRest ? `${st.label} · up next` : "Now";
     $("exName").textContent = e.name;
     $("exReps").textContent = e.reps;
-    $("badges").innerHTML = `<span class="badge db">${dumbbellText(e.dumbbells)}</span>` + e.muscles.map((m) => `<span class="badge">${m}</span>`).join("");
+    $("badges").innerHTML = `<span class="badge db">${dumbbellText(e.dumbbells)}</span>` + e.primary.map((m) => `<span class="badge">${MUS[m].name}</span>`).join("");
+    $("muscleCard").innerHTML = muscleCard(e);
     $("cues").innerHTML = e.cues.map((c) => `<li>${c}</li>`).join("");
     $("tip").classList.toggle("hidden", !e.tip);
     $("tip").textContent = e.tip ? "★ " + e.tip : "";

@@ -184,7 +184,7 @@ kbd {
 .dot.done { background: var(--good); }
 .dot.now { background: var(--accent); box-shadow: 0 0 14px var(--accent); }
 
-.stage { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(340px, 1fr); gap: 32px; padding: 8px 28px 16px; min-height: 0; }
+.stage { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(340px, 1fr) minmax(230px, .55fr); gap: 28px; padding: 8px 28px 16px; min-height: 0; }
 .video-wrap { min-height: 0; display: flex; align-items: center; justify-content: center; container-type: size; }
 .video-box { position: relative; background: #000; border-radius: 22px; overflow: hidden; box-shadow: 0 40px 80px -20px rgba(0,0,0,.95), 0 0 0 1px rgba(255,255,255,.12), 0 0 80px -20px color-mix(in srgb, var(--accent) 60%, transparent); }
 .video-box.tall { height: min(100cqh, calc(100cqw * 16 / 9)); aspect-ratio: 9 / 16; }
@@ -199,7 +199,7 @@ kbd {
 .paused-badge small { font: 600 18px Inter, sans-serif; letter-spacing: 0; color: var(--muted); margin-top: 6px; }
 .video-error { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 22px; background: #000; padding: 20px; line-height: 1.6; }
 
-.panel { display: flex; flex-direction: column; justify-content: center; min-height: 0; overflow: auto; padding-right: 8px; }
+.panel { display: flex; flex-direction: column; justify-content: safe center; min-height: 0; overflow: auto; padding-right: 8px; scrollbar-width: none; }
 .phase { font: 800 22px var(--display); text-transform: uppercase; letter-spacing: .16em; color: color-mix(in srgb, var(--accent) 70%, white); }
 .resting .phase { color: var(--warn); }
 .ex-name { font: 800 clamp(44px, 5.4vw, 92px)/0.92 var(--display); text-transform: uppercase; margin: 8px 0 10px; }
@@ -211,9 +211,22 @@ kbd {
 .big-timer { font: 800 clamp(110px, 14vw, 210px)/0.9 var(--display); margin: 10px 0 0; font-variant-numeric: tabular-nums; color: var(--warn); }
 .big-timer.warn { color: #ff4d6d; animation: blink 1s infinite; }
 .side-label { font: 800 28px var(--display); text-transform: uppercase; letter-spacing: .04em; margin-top: 6px; }
-.cues { list-style: none; padding: 0; margin: 18px 0 0; font-size: clamp(18px, 1.6vw, 23px); }
-.cues li { padding: 7px 0 7px 34px; position: relative; }
+.cues { list-style: none; padding: 0; margin: 12px 0 0; font-size: clamp(18px, 1.6vw, 23px); }
+.cues li { padding: 5px 0 5px 34px; position: relative; }
 .cues li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 900; }
+.muscle-card { display: flex; flex-direction: column; justify-content: center; gap: 16px; align-self: center; padding: 18px 16px; border-radius: 18px; background: rgba(255,255,255,.05); border: 1px solid var(--line); }
+.bm-figs { display: flex; gap: 10px; flex: none; justify-content: center; }
+.bm-figs > div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.bm-figs span { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.bm { height: clamp(150px, 30vh, 360px); width: auto; }
+.bm polygon { fill: rgba(255,255,255,.2); stroke: #000; stroke-width: .5; stroke-linejoin: round; }
+.bm polygon.skin { fill: rgba(255,255,255,.08); }
+.bm polygon.sec { fill: color-mix(in srgb, var(--accent) 40%, #2a2a2a); }
+.bm polygon.pri { fill: var(--accent); }
+.mlist { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mrow b { display: block; font: 800 20px/1.1 var(--display); text-transform: uppercase; letter-spacing: .03em; color: color-mix(in srgb, var(--accent) 60%, white); }
+.mrow span { font-size: 14px; color: rgba(255,255,255,.75); line-height: 1.35; }
+.malso { font-size: 13px; color: var(--muted); }
 .tip { margin-top: 12px; display: inline-block; align-self: flex-start; background: rgba(43,227,143,.12); color: #8ff0c6; border: 1px solid rgba(43,227,143,.35); padding: 8px 14px; border-radius: 99px; font-weight: 600; }
 .elapsed { margin-top: 18px; color: var(--muted); font-variant-numeric: tabular-nums; }
 @keyframes blink { 50% { opacity: .55; } }
@@ -250,6 +263,10 @@ kbd {
 .big-btn kbd { color: #000; background: #eee; border-color: rgba(0,0,0,.2); }
 
 /* ---------------- narrow screens ---------------- */
+@media (max-width: 1250px) {
+  .stage { grid-template-columns: minmax(0, 1.2fr) minmax(340px, 1fr); }
+  .muscle-card { display: none; }
+}
 @media (max-width: 900px) {
   .hud-top { padding: 16px 16px 0; flex-direction: column; align-items: flex-start; }
   .stats { flex-wrap: wrap; }
