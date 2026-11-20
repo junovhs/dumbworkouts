@@ -215,7 +215,7 @@
       setImg(p.querySelector<UIElement>(".p-photo"), previewVideo(d.moves[0]));
       p.addEventListener("click", (e) => {
         if (i !== focus) { setFocus(i); return; }
-        if (e.target.closest(".p-go") || e.target.closest(".p-art") || e.target.closest(".p-shade")) activate(i);
+        if ((e.target as Element).closest(".p-go") || (e.target as Element).closest(".p-art") || (e.target as Element).closest(".p-shade")) activate(i);
       });
       p.querySelector<UIElement>(".p-go").addEventListener("click", (e) => { e.stopPropagation(); if (i === focus) activate(i); });
       wrap.appendChild(p);
@@ -230,20 +230,20 @@
       // circular: one panel on the left, the rest on the right (for 4 days: -1, 0, 1, 2)
       const d = (((i - focus) % n) + n + 1) % n - 1, a = Math.abs(d), s = Math.sign(d);
       const prev = p.dataset.d === undefined ? d : +p.dataset.d;
-      p.dataset.d = d;
+      p.dataset.d = String(d);
       p.classList.toggle("focused", d === 0);
       // a panel wrapping from one end to the other jumps instead of sweeping through the front
       p.classList.toggle("instant", !!instant || Math.abs(prev - d) > 1);
-      p.style.setProperty("--d", d);
-      p.style.setProperty("--a", a);
-      p.style.setProperty("--s", s);
-      p.style.zIndex = 10 - a;
+      p.style.setProperty("--d", String(d));
+      p.style.setProperty("--a", String(a));
+      p.style.setProperty("--s", String(s));
+      p.style.zIndex = String(10 - a);
     });
     document.documentElement.style.setProperty("--accent", CARDS[focus].color);
     renderRounds();
   }
 
-  function setFocus(i) {
+  function setFocus(i: number, _direction?: number) {
     i = ((i % CARDS.length) + CARDS.length) % CARDS.length;
     if (i === focus) return;
     focus = i;
@@ -257,7 +257,7 @@
     el.innerHTML = "";
     for (let r = 1; r <= 3; r++) {
       const b = document.createElement("button");
-      b.textContent = r;
+      b.textContent = String(r);
       b.className = r === settings.rounds ? "on" : "";
       b.onclick = () => setRounds(r);
       el.appendChild(b);
@@ -373,7 +373,7 @@
   }
   const shuffle = <T>(xs: T[]): T[] => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   // pick one from candidates, preferring ones not in `avoid`
-  const pickFrom = (cands, avoid) => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
+  const pickFrom = (cands: string[], avoid: Set<string>): string | undefined => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
 
   function buildSet(area, avoid = new Set(), size = 5) {
     const pool = poolFor(area), used = new Set();
@@ -418,7 +418,7 @@
     sfx("start");
     selectArea(menuArea, true);
   }
-  function selectArea(i, force) {
+  function selectArea(i: number, force = false) {
     const n = menuItems().length;
     i = ((i % n) + n) % n;
     if (i === menuArea && !force) return;
@@ -534,7 +534,7 @@
       return [e.name, PATTERN_LABEL[e.pattern] || "", ...e.primary.map((m) => MUS[m].name), ...e.secondary.map((m) => MUS[m].name)].join(" ").toLowerCase().includes(q);
     });
     const fv = favs();
-    const groups = PICK_ORDER.map((p) => [p, keys.filter((k) => EX[k].pattern === p)]).filter(([, ks]) => ks.length);
+    const groups = PICK_ORDER.map((p): [string, string[]] => [p, keys.filter((k) => EX[k].pattern === p)]).filter(([, ks]) => ks.length);
     $("pickCount").textContent = `${menuSet.length} in your workout`;
     $("pickGrid").innerHTML = groups.map(([p, ks]) => `<h3 class="pick-h">${PATTERN_LABEL[p]} <span>${ks.length}</span></h3>
       <div class="pick-row">${ks.map((k) => {
@@ -895,7 +895,7 @@
           onReady: (ev) => { if (gen === previewGen) { ev.target.mute(); ev.target.playVideo(); } },
           onStateChange: (ev) => {
             if (gen !== previewGen) return;
-            const vid = p.querySelector<UIElement>(".p-vid");
+            const vid = p.querySelector(".p-vid");
             if (ev.data === YT.PlayerState.PLAYING) {
               // let YouTube's title overlay fade before revealing
               setTimeout(() => { if (gen === previewGen) vid.classList.add("live"); }, 900);
@@ -914,12 +914,12 @@
     const v = previewVideo(day.moves[previewIdx]);
     const vid = p.querySelector<UIElement>(".p-vid");
     vid.classList.remove("live");
-    setImg(p.querySelector<UIElement>(".p-photo"), v);
+    setImg(p.querySelector(".p-photo") as HTMLImageElement, v);
     markPreviewMove(p, previewIdx);
     setTimeout(() => { if (gen === previewGen && preview) preview.loadVideoById(v.id); }, 350);
   }
   function markPreviewMove(p, j) {
-    p.querySelectorAll<UIElement>(".p-moves li").forEach((li) => li.classList.toggle("on", +li.dataset.j === j));
+    p.querySelectorAll<HTMLElement>(".p-moves li").forEach((li) => li.classList.toggle("on", +li.dataset.j === j));
   }
 
   // ---------- SESSION ----------
@@ -976,7 +976,7 @@
       if (st.type !== "work") return;
       const dot = document.createElement("span");
       dot.className = "dot";
-      dot.dataset.j = j;
+      dot.dataset.j = String(j);
       dot.title = `Round ${st.round}: ${EX[st.key].name}`;
       p.appendChild(dot);
     });
