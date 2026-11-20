@@ -60,6 +60,35 @@
     </div>
   </main>
 
+  <!-- À LA CARTE MENU -->
+  <main id="menu" class="view hidden">
+    <div class="ambient"></div>
+    <header class="menu-head">
+      <button class="hud-btn" id="menuBack">◀ Back <kbd>Esc</kbd></button>
+      <h1>Build a workout</h1>
+      <div class="menu-rounds"><span>Rounds</span><div class="seg" id="menuRounds"></div></div>
+    </header>
+    <div class="menu-body">
+      <nav class="areas" id="areas" aria-label="Body areas"></nav>
+      <section class="setbox">
+        <div class="set-head"><h2 id="setTitle"></h2><span id="setSub"></span></div>
+        <ol class="set-list" id="setList"></ol>
+        <div class="set-actions">
+          <button class="hud-btn" id="shuffleBtn">↻ Shuffle <kbd>R</kbd></button>
+          <button class="big-btn" id="setStart">Start <kbd>Enter</kbd></button>
+        </div>
+      </section>
+      <aside class="coverage">
+        <h3>What this set works</h3>
+        <div id="setMap"></div>
+        <div class="mchips" id="setMuscles"></div>
+      </aside>
+    </div>
+    <footer class="key-hints menu-keys">
+      <span><kbd>▲</kbd><kbd>▼</kbd> Body area</span><span><kbd>R</kbd> Shuffle</span><span><kbd>1</kbd>–<kbd>3</kbd> Rounds</span><span><kbd>Enter</kbd> Start</span>
+    </footer>
+  </main>
+
   <!-- SESSION -->
   <main id="session" class="view hidden">
     <div class="ambient session-ambient"><img id="sessionBgImg" alt=""></div>

@@ -42,8 +42,12 @@
   function thumb(v) {
     return v.shape === "tall" ? `https://i.ytimg.com/vi/${v.id}/oar2.jpg` : `https://i.ytimg.com/vi/${v.id}/maxresdefault.jpg`;
   }
+  // YouTube answers a missing tall thumbnail with a tiny grey placeholder (HTTP 404 but a valid image),
+  // so fall back on errors *and* on suspiciously small images.
   function setImg(img, v) {
-    img.onerror = () => { img.onerror = null; img.src = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`; };
+    const fallback = () => { img.onerror = img.onload = null; img.src = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`; };
+    img.onerror = fallback;
+    img.onload = () => { if (img.naturalWidth < 200) fallback(); else img.onload = null; };
     img.src = thumb(v);
   }
 
@@ -51,7 +55,8 @@
   const history = () => store.get("history", []);
   function suggestedDay() {
     const h = history();
-    return h.length ? (h[h.length - 1].day % DAYS.length) + 1 : 1;
+    const last = [...h].reverse().find((x) => typeof x.day === "number");
+    return last ? (last.day % DAYS.length) + 1 : 1;
   }
   const dayKey = (d) => new Date(d).toDateString();
   function fmtDate(iso) {
@@ -74,7 +79,7 @@
   let view = "home";
   function show(v) {
     view = v;
-    for (const id of ["home", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
+    for (const id of ["home", "menu", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
     if (v === "home") startPreview(); else stopPreview();
   }
 
@@ -113,19 +118,36 @@
     return lo === hi ? dumbbellText(lo) : `${lo}–${hi} dumbbells`;
   }
 
+  const MENU_CARD = { menu: true, title: "À la carte", color: "#f5b82e",
+    moves: ["couchHipThrust", "sumoSquat", "curtsyLunge", "fireHydrant", "singleLegRdl"] };
+  const CARDS = [...DAYS, MENU_CARD];
   let focus = suggestedDay() - 1;
   let panels = [];
+  function activate(i) { const c = CARDS[i]; c.menu ? openMenu() : startSession(c.n); }
 
   function buildCarousel() {
     const wrap = $("carousel");
     wrap.innerHTML = "";
     const h = history(), sug = suggestedDay();
-    panels = DAYS.map((d, i) => {
+    panels = CARDS.map((d, i) => {
       const last = [...h].reverse().find((x) => x.day === d.n);
       const p = document.createElement("article");
-      p.className = "p3d";
+      p.className = "p3d" + (d.menu ? " menu-card" : "");
       p.style.setProperty("--c", d.color);
-      p.innerHTML = `
+      p.innerHTML = d.menu ? `
+        <div class="p-art">
+          <img class="p-photo" alt="">
+          <div class="p-vid"></div>
+        </div>
+        <div class="p-shade"></div>
+        <div class="p-gloss"></div>
+        <div class="p-top"><span class="p-day">BUILD YOUR OWN</span><span class="p-next">NEW</span></div>
+        <div class="p-body">
+          <h2 class="p-title">À LA<br>CARTE</h2>
+          <div class="p-meta"><span>${Object.keys(EX).length} moves</span><span>pick a body area</span></div>
+          <ol class="p-moves">${AREAS.map((a, j) => `<li data-j="${j}"><span>${a.name}</span><em>${poolFor(a.id).length} moves</em></li>`).join("")}</ol>
+          <button class="p-go">OPEN MENU <kbd>Enter</kbd></button>
+        </div>` : `
         <div class="p-art">
           <img class="p-photo" alt="">
           <div class="p-vid"></div>
@@ -145,9 +167,9 @@
       setImg(p.querySelector(".p-photo"), previewVideo(d.moves[0]));
       p.addEventListener("click", (e) => {
         if (i !== focus) { setFocus(i); return; }
-        if (e.target.closest(".p-go") || e.target.closest(".p-art") || e.target.closest(".p-shade")) startSession(d.n);
+        if (e.target.closest(".p-go") || e.target.closest(".p-art") || e.target.closest(".p-shade")) activate(i);
       });
-      p.querySelector(".p-go").addEventListener("click", (e) => { e.stopPropagation(); if (i === focus) startSession(d.n); });
+      p.querySelector(".p-go").addEventListener("click", (e) => { e.stopPropagation(); if (i === focus) activate(i); });
       wrap.appendChild(p);
       return p;
     });
@@ -169,13 +191,12 @@
       p.style.setProperty("--s", s);
       p.style.zIndex = 10 - a;
     });
-    const day = DAYS[focus];
-    document.documentElement.style.setProperty("--accent", day.color);
+    document.documentElement.style.setProperty("--accent", CARDS[focus].color);
     renderRounds();
   }
 
   function setFocus(i) {
-    i = ((i % DAYS.length) + DAYS.length) % DAYS.length;
+    i = ((i % CARDS.length) + CARDS.length) % CARDS.length;
     if (i === focus) return;
     focus = i;
     sfx("move");
@@ -194,7 +215,7 @@
       el.appendChild(b);
     }
     $("roundsTime").textContent = minutesFor(settings.rounds);
-    panels.forEach((p) => (p.querySelector(".p-mins").textContent = minutesFor(settings.rounds)));
+    panels.forEach((p) => { const m = p.querySelector(".p-mins"); if (m) m.textContent = minutesFor(settings.rounds); });
   }
   function setRounds(r) {
     r = Math.max(1, Math.min(3, r));
@@ -208,7 +229,7 @@
     $("stats").innerHTML = `
       <div class="stat"><b>${st}</b><span>day streak${st ? " 🔥" : ""}</span></div>
       <div class="stat"><b>${h.length}</b><span>workouts</span></div>
-      <div class="stat wide"><b>${last ? "Day " + last.day : "—"}</b><span>${last ? "last, " + fmtDate(last.date) : "nothing yet"}</span></div>
+      <div class="stat wide"><b>${last ? (last.custom || "Day " + last.day) : "—"}</b><span>${last ? "last, " + fmtDate(last.date) : "nothing yet"}</span></div>
       <div class="stat wide"><b>Day ${sug}</b><span>up next</span></div>`;
   }
 
@@ -234,7 +255,7 @@
   }
 
   function renderHome() {
-    focus = Math.min(Math.max(focus, 0), DAYS.length - 1);
+    focus = Math.min(Math.max(focus, 0), CARDS.length - 1);
     renderStats();
     buildCarousel();
     startPreview();
@@ -267,6 +288,127 @@
     setFocus(focus + Math.sign(dv), Math.sign(dv));
   }, { passive: true });
 
+  // ---------- À LA CARTE ----------
+  const AREAS = [
+    { id: "butt", name: "Butt", color: "#e8336b", blurb: "Bridges, hinges, squats, lunges and side glutes" },
+    { id: "legs", name: "Legs", color: "#f08a24", blurb: "Quads, hamstrings and inner thighs" },
+    { id: "core", name: "Core", color: "#14a39a", blurb: "Abs, obliques and lower back" },
+    { id: "upper", name: "Upper body", color: "#8a5cf6", blurb: "Chest, shoulders, back and arms" },
+    { id: "arms", name: "Arms", color: "#3b82f6", blurb: "Biceps, triceps and grip" },
+    { id: "full", name: "Full body", color: "#22c38e", blurb: "Legs, glutes, push, pull and core" },
+  ];
+  const PATTERN_LABEL = { squat: "Squat", hinge: "Hinge", lunge: "Single-leg", bridge: "Bridge", side: "Side glutes", kickback: "Glute isolation", core: "Core", push: "Push", pull: "Pull", arms: "Arms" };
+  const UPPER = ["chest", "shoulders", "back", "arms"];
+  function poolFor(area) {
+    return Object.keys(EX).filter((k) => {
+      const a = EX[k].areas || [];
+      if (area === "full") return true;
+      if (area === "upper") return a.some((x) => UPPER.includes(x));
+      return a.includes(area);
+    });
+  }
+  const shuffle = (xs) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  // pick one from candidates, preferring ones not in `avoid`
+  const pickFrom = (cands, avoid) => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
+
+  function buildSet(area, avoid = new Set(), size = 5) {
+    const pool = poolFor(area), used = new Set();
+    const take = (filter) => {
+      const k = pickFrom(pool.filter((x) => !used.has(x) && filter(EX[x])), avoid);
+      if (k) used.add(k);
+      return k;
+    };
+    let picks = [];
+    if (area === "butt") {
+      // always a hinge, a bridge and a side-glute move, plus two of squat / single-leg / isolation
+      const extra = shuffle(["squat", "lunge", "squat", "lunge", "kickback"]);
+      const pats = ["hinge", "bridge", "side"];
+      for (const p of extra) if (pats.length < size && !pats.includes(p)) pats.push(p);
+      const ORDER = ["squat", "hinge", "lunge", "bridge", "kickback", "side"];
+      pats.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
+      picks = pats.map((p) => take((e) => e.pattern === p));
+    } else if (area === "full") {
+      const slots = [(e) => ["squat", "lunge"].includes(e.pattern), (e) => ["hinge", "bridge"].includes(e.pattern), (e) => e.pattern === "push", (e) => e.pattern === "pull", (e) => e.pattern === "core"];
+      picks = slots.map(take);
+    } else {
+      // greedy: each next move adds the most main muscles not covered yet
+      const covered = new Set();
+      while (picks.length < size) {
+        const cands = shuffle(pool.filter((k) => !used.has(k)));
+        if (!cands.length) break;
+        const score = (k) => EX[k].primary.filter((m) => !covered.has(m)).length * 10 - (avoid.has(k) ? 5 : 0);
+        cands.sort((a, b) => score(b) - score(a));
+        const k = cands[0];
+        used.add(k); picks.push(k);
+        EX[k].primary.forEach((m) => covered.add(m));
+      }
+      picks.sort((a, b) => EX[b].primary.length - EX[a].primary.length);
+    }
+    return picks.filter(Boolean);
+  }
+
+  let menuArea = 0, menuSet = [];
+  function openMenu() {
+    stopPreview();
+    show("menu");
+    sfx("start");
+    selectArea(menuArea, true);
+  }
+  function selectArea(i, force) {
+    i = ((i % AREAS.length) + AREAS.length) % AREAS.length;
+    if (i === menuArea && !force) return;
+    menuArea = i;
+    if (!force) sfx("move");
+    document.documentElement.style.setProperty("--accent", AREAS[i].color);
+    menuSet = buildSet(AREAS[i].id);
+    renderMenu();
+  }
+  function reshuffle() {
+    menuSet = buildSet(AREAS[menuArea].id, new Set(menuSet));
+    sfx("tick");
+    renderMenu();
+  }
+  function swapOne(j) {
+    const area = AREAS[menuArea].id, cur = menuSet[j], pat = EX[cur].pattern;
+    const pool = poolFor(area).filter((k) => !menuSet.includes(k));
+    const same = pool.filter((k) => EX[k].pattern === pat);
+    const k = pickFrom(same.length ? same : pool, new Set());
+    if (!k) { sfx("edge"); return; }
+    menuSet[j] = k; sfx("tick"); renderMenu();
+  }
+  function renderMenu() {
+    const area = AREAS[menuArea];
+    $("areas").innerHTML = AREAS.map((a, i) => `
+      <button class="area${i === menuArea ? " on" : ""}" data-i="${i}" style="--c:${a.color}">
+        <b>${a.name}</b><span>${poolFor(a.id).length} moves · ${a.blurb}</span>
+      </button>`).join("");
+    $("areas").querySelectorAll(".area").forEach((b) => (b.onclick = () => selectArea(+b.dataset.i)));
+    $("setTitle").textContent = `${area.name} workout`;
+    $("setSub").textContent = `${menuSet.length} moves · ${settings.rounds} round${settings.rounds > 1 ? "s" : ""} · ${minutesFor(settings.rounds)}`;
+    $("setList").innerHTML = menuSet.map((k, j) => {
+      const e = EX[k], v = previewVideo(k);
+      return `<li class="srow">
+        <span class="snum">${j + 1}</span>
+        <img class="sthumb" alt="" data-k="${k}">
+        <div class="sinfo"><b>${e.name}</b><span>${e.reps} · ${dumbbellText(e.dumbbells)} · ${e.primary.map((m) => MUS[m].name).join(", ")}</span></div>
+        <span class="spat">${PATTERN_LABEL[e.pattern] || ""}</span>
+        <button class="sswap" data-j="${j}" title="Swap for a similar move">↻</button>
+      </li>`;
+    }).join("");
+    $("setList").querySelectorAll(".sswap").forEach((b) => (b.onclick = () => swapOne(+b.dataset.j)));
+    $("setList").querySelectorAll(".sthumb").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
+    const pri = new Set(menuSet.flatMap((k) => EX[k].primary));
+    const sec = new Set(menuSet.flatMap((k) => EX[k].secondary).filter((m) => !pri.has(m)));
+    $("setMap").innerHTML = bodyMap([...pri], [...sec]);
+    $("setMuscles").innerHTML = [...pri].map((m) => `<span class="mchip pri">${MUS[m].name}</span>`).join("") + [...sec].map((m) => `<span class="mchip">${MUS[m].name}</span>`).join("");
+    segmented($("menuRounds"), [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (r) => { settings.rounds = r; save("rounds"); renderMenu(); });
+  }
+  function startMenuSet() {
+    if (!menuSet.length) return;
+    const a = AREAS[menuArea];
+    startSession({ n: null, custom: a.name, title: `${a.name} (à la carte)`, color: a.color, moves: [...menuSet] });
+  }
+
   // ---------- start-screen preview player (focused panel only) ----------
   let preview = null, previewTimer = null, previewIdx = 0, previewGen = 0;
   function stopPreview() {
@@ -281,7 +423,7 @@
     if (view !== "home" || !panels[focus]) return;
     // On touch screens YouTube draws its dark tap-to-control overlay on top, so stick to the still photo there.
     if (matchMedia("(pointer: coarse)").matches) return;
-    const gen = previewGen, p = panels[focus], day = DAYS[focus];
+    const gen = previewGen, p = panels[focus], day = CARDS[focus];
     previewIdx = 0;
     markPreviewMove(p, 0);
     ytReady.then(() => {
@@ -341,7 +483,7 @@
   }
 
   function startSession(n) {
-    const day = DAYS.find((d) => d.n === n);
+    const day = typeof n === "object" ? n : DAYS.find((d) => d.n === n);
     unlockAudio();
     sfx("start");
     S = { day, rounds: settings.rounds, steps: buildSteps(day, settings.rounds), i: 0, paused: false, started: Date.now(), spaceBlockUntil: Date.now() + 600 };
@@ -388,7 +530,7 @@
     const key = isRest ? st.next : st.key;
     const e = EX[key];
     $("session").classList.toggle("resting", isRest);
-    $("tDay").textContent = `Day ${S.day.n} · ${S.day.title}`;
+    $("tDay").textContent = S.day.custom ? `À la carte · ${S.day.custom}` : `Day ${S.day.n} · ${S.day.title}`;
     $("tRound").textContent = `Round ${st.round} of ${S.rounds}`;
     $("tMove").textContent = `Move ${st.idx + 1} of ${S.day.moves.length}`;
     $("phase").textContent = isRest ? `${st.label} · up next` : "Now";
@@ -497,16 +639,16 @@
   }
   function finish() {
     const h = history();
-    h.push({ day: S.day.n, rounds: S.rounds, date: new Date().toISOString(), minutes: Math.round((Date.now() - S.started) / 60000) });
+    h.push({ day: S.day.custom ? null : S.day.n, custom: S.day.custom, rounds: S.rounds, date: new Date().toISOString(), minutes: Math.round((Date.now() - S.started) / 60000) });
     store.set("history", h.slice(-200));
     beep(523, 0.15); setTimeout(() => beep(659, 0.15), 160); setTimeout(() => beep(784, 0.3), 320);
     endSession();
-    $("doneTitle").textContent = `Day ${S.day.n} done!`;
+    $("doneTitle").textContent = S.day.custom ? `${S.day.custom} done!` : `Day ${S.day.n} done!`;
     const mins = Math.max(1, Math.round((Date.now() - S.started) / 60000));
     $("doneSub").textContent = `${S.rounds} round${S.rounds > 1 ? "s" : ""} of ${S.day.title} in about ${mins} minute${mins > 1 ? "s" : ""}.`;
     const st = streak();
     $("doneNext").textContent = `${st > 1 ? `🔥 ${st}-day streak · ` : ""}Next time: Day ${suggestedDay()} — ${DAYS[suggestedDay() - 1].title}`;
-    focus = suggestedDay() - 1;
+    if (!S.day.custom) focus = suggestedDay() - 1;
     show("done");
   }
 
@@ -612,11 +754,22 @@
       const act = {
         ArrowLeft: () => setFocus(focus - 1, -1), ArrowRight: () => setFocus(focus + 1, 1),
         ArrowUp: () => setRounds(settings.rounds + 1), ArrowDown: () => setRounds(settings.rounds - 1),
-        Enter: () => startSession(DAYS[focus].n), " ": () => startSession(DAYS[focus].n),
+        Enter: () => activate(focus), " ": () => activate(focus),
         s: () => toggleSheet(true), S: () => toggleSheet(true),
       }[k];
       if (act) { e.preventDefault(); act(); }
-      else if (/^[1-4]$/.test(k)) { e.preventDefault(); setFocus(+k - 1, 1); }
+      else if (/^[1-5]$/.test(k)) { e.preventDefault(); setFocus(+k - 1, 1); }
+      return;
+    }
+    if (view === "menu") {
+      const act = {
+        ArrowUp: () => selectArea(menuArea - 1), ArrowDown: () => selectArea(menuArea + 1),
+        ArrowLeft: () => selectArea(menuArea - 1), ArrowRight: () => selectArea(menuArea + 1),
+        r: reshuffle, R: reshuffle, Enter: startMenuSet, " ": startMenuSet,
+        Escape: () => { show("home"); renderHome(); }, Backspace: () => { show("home"); renderHome(); },
+      }[k];
+      if (act) { e.preventDefault(); act(); }
+      else if (/^[1-3]$/.test(k)) { e.preventDefault(); settings.rounds = +k; save("rounds"); sfx("tick"); renderMenu(); }
       return;
     }
     if (view === "done") {
@@ -652,6 +805,9 @@
   $("quitBtn").onclick = quit;
   $("homeBtn").onclick = () => { show("home"); renderHome(); };
   $("settingsBtn").onclick = () => toggleSheet(true);
+  $("menuBack").onclick = () => { show("home"); renderHome(); };
+  $("shuffleBtn").onclick = reshuffle;
+  $("setStart").onclick = startMenuSet;
   $("sheetClose").onclick = () => toggleSheet(false);
   $("sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") toggleSheet(false); });
 
@@ -661,6 +817,6 @@
   // exposed for quick testing in the console
   window.__workout = {
     get state() { return S; }, get player() { return player; }, get preview() { return preview; }, get focus() { return focus; },
-    startSession, next, back, togglePause, setFocus,
+    startSession, next, back, togglePause, setFocus, buildSet, poolFor, openMenu, get menuSet() { return menuSet; },
   };
 })();
