@@ -5,54 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dumbbell Workouts</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏋️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <!-- HOME -->
   <main id="home" class="view">
-    <header class="home-head">
-      <h1>Dumbbell Workouts</h1>
-      <p class="sub">Beginner · 8 lb dumbbells · no bench · 9–20 minutes</p>
+    <div class="ambient" id="ambient"><img id="ambientImg" alt=""></div>
+
+    <header class="hud-top">
+      <div class="logo">DUMBBELL<span>WORKOUTS</span></div>
+      <div class="stats" id="stats"></div>
     </header>
 
-    <section class="setup">
-      <div class="setting">
-        <span class="setting-label">Rounds today</span>
-        <div class="seg" id="roundsSeg"></div>
-        <span class="setting-hint" id="roundsHint"></span>
-      </div>
-      <div class="setting">
-        <span class="setting-label">Rest between moves</span>
-        <div class="seg" id="restSeg"></div>
-      </div>
-      <div class="setting">
-        <span class="setting-label">Countdown beeps</span>
-        <div class="seg" id="beepSeg"></div>
-      </div>
-    </section>
+    <section class="carousel" id="carousel" aria-label="Choose a workout day"></section>
 
-    <p class="last-done" id="lastDone"></p>
-    <section class="days" id="days"></section>
+    <footer class="hud-bottom">
+      <button class="hud-btn" id="settingsBtn"><kbd>S</kbd> Settings</button>
 
-    <section class="keys-card">
-      <h2>Controls during a workout</h2>
-      <div class="keys">
-        <div><kbd>Space</kbd> pause / play</div>
-        <div><kbd>Enter</kbd> done → next</div>
-        <div><kbd>←</kbd> go back</div>
-        <div><kbd>F</kbd> full screen</div>
-        <div><kbd>M</kbd> video sound</div>
-        <div><kbd>V</kbd> try another video</div>
-        <div><kbd>Esc</kbd> quit workout</div>
+      <div class="rounds">
+        <span class="rounds-label">Rounds</span>
+        <div class="rounds-pick" id="roundsPick"></div>
+        <span class="rounds-time" id="roundsTime"></span>
+        <span class="hint"><kbd>▲</kbd><kbd>▼</kbd></span>
       </div>
-      <p class="muted">On this page: press <kbd>1</kbd>–<kbd>4</kbd> to start that day, or <kbd>Enter</kbd> for the suggested one.</p>
-    </section>
 
-    <section class="rules" id="rules"></section>
+      <div class="key-hints">
+        <span><kbd>◀</kbd><kbd>▶</kbd> Choose day</span>
+        <span><kbd>Enter</kbd> Start</span>
+      </div>
+    </footer>
+
+    <div class="sheet hidden" id="sheet">
+      <div class="sheet-card">
+        <h2>Settings</h2>
+        <div class="setting"><span>Rest between moves</span><div class="seg" id="restSeg"></div></div>
+        <div class="setting"><span>Sounds &amp; countdown beeps</span><div class="seg" id="beepSeg"></div></div>
+        <h3>During a workout</h3>
+        <div class="keys">
+          <div><kbd>Space</kbd> pause / play</div>
+          <div><kbd>Enter</kbd> done → next</div>
+          <div><kbd>←</kbd> go back</div>
+          <div><kbd>F</kbd> full screen</div>
+          <div><kbd>M</kbd> video sound</div>
+          <div><kbd>V</kbd> try another video</div>
+          <div><kbd>Esc</kbd> quit workout</div>
+        </div>
+        <h3>Quick rules</h3>
+        <ul class="rules" id="rules"></ul>
+        <button class="sheet-close" id="sheetClose">Close <kbd>Esc</kbd></button>
+      </div>
+    </div>
   </main>
 
   <!-- SESSION -->
   <main id="session" class="view hidden">
+    <div class="ambient session-ambient"><img id="sessionBgImg" alt=""></div>
     <div class="topbar">
       <button class="icon-btn" id="quitBtn" title="Quit (Esc)">✕</button>
       <div class="topinfo">
@@ -99,11 +109,11 @@
   <!-- DONE -->
   <main id="done" class="view hidden">
     <div class="done-card">
-      <div class="trophy">🏆</div>
+      <div class="done-kicker">WORKOUT COMPLETE</div>
       <h1 id="doneTitle">Great job!</h1>
       <p id="doneSub"></p>
       <p class="muted" id="doneNext"></p>
-      <button class="big-btn" id="homeBtn">Back to start <kbd>Enter</kbd></button>
+      <button class="big-btn" id="homeBtn">Continue <kbd>Enter</kbd></button>
     </div>
   </main>
 

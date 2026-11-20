@@ -18,6 +18,7 @@
 
   const READY_SECS = 10;      // "get ready" before the first move
   const ROUND_REST = 60;      // rest between rounds
+  const PREVIEW_SECS = 7;     // how long each move previews on the start screen
 
   // ---------- video choice per exercise ----------
   function videoOptions(key) {
@@ -33,11 +34,17 @@
     const opts = videoOptions(key);
     store.set("vidx:" + key, (store.get("vidx:" + key, 0) + 1) % opts.length);
   }
-  function parseYouTube(url) {
-    const m = String(url).match(/(?:youtu\.be\/|v=|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{11})/) ||
-              String(url).trim().match(/^([A-Za-z0-9_-]{11})$/);
-    if (!m) return null;
-    return { id: m[1], shape: /shorts/.test(url) ? "tall" : "wide" };
+  // Best video for a tall preview panel: the chosen one if vertical, else any vertical option.
+  function previewVideo(key) {
+    const cur = currentVideo(key);
+    return cur.shape === "tall" ? cur : videoOptions(key).find((v) => v.shape === "tall") || cur;
+  }
+  function thumb(v) {
+    return v.shape === "tall" ? `https://i.ytimg.com/vi/${v.id}/oar2.jpg` : `https://i.ytimg.com/vi/${v.id}/maxresdefault.jpg`;
+  }
+  function setImg(img, v) {
+    img.onerror = () => { img.onerror = null; img.src = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`; };
+    img.src = thumb(v);
   }
 
   // ---------- history ----------
@@ -46,6 +53,7 @@
     const h = history();
     return h.length ? (h[h.length - 1].day % DAYS.length) + 1 : 1;
   }
+  const dayKey = (d) => new Date(d).toDateString();
   function fmtDate(iso) {
     const d = new Date(iso), today = new Date();
     const days = Math.round((new Date(today.toDateString()) - new Date(d.toDateString())) / 864e5);
@@ -53,79 +61,238 @@
     if (days === 1) return "yesterday";
     return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   }
+  function streak() {
+    const done = new Set(history().map((h) => dayKey(h.date)));
+    const d = new Date();
+    if (!done.has(d.toDateString())) d.setDate(d.getDate() - 1);
+    let n = 0;
+    while (done.has(d.toDateString())) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
 
   // ---------- views ----------
   let view = "home";
   function show(v) {
     view = v;
     for (const id of ["home", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
+    if (v === "home") startPreview(); else stopPreview();
   }
 
-  // ---------- HOME ----------
+  // ---------- HOME: 3D carousel ----------
+  const dumbbellText = (n) => (n === 0 ? "No weight" : n === 1 ? "1 dumbbell" : "2 dumbbells");
+  const minutesFor = (r) => ["", "9–10 min", "14–15 min", "18–20 min"][r] || "";
+  function dumbbellRange(day) {
+    const ns = day.moves.map((k) => EX[k].dumbbells).filter((n) => n > 0);
+    const lo = Math.min(...ns), hi = Math.max(...ns);
+    return lo === hi ? dumbbellText(lo) : `${lo}–${hi} dumbbells`;
+  }
+
+  let focus = suggestedDay() - 1;
+  let panels = [];
+
+  function buildCarousel() {
+    const wrap = $("carousel");
+    wrap.innerHTML = "";
+    const h = history(), sug = suggestedDay();
+    panels = DAYS.map((d, i) => {
+      const last = [...h].reverse().find((x) => x.day === d.n);
+      const p = document.createElement("article");
+      p.className = "p3d";
+      p.style.setProperty("--c", d.color);
+      p.innerHTML = `
+        <div class="p-art">
+          <img class="p-photo" alt="">
+          <div class="p-vid"></div>
+        </div>
+        <div class="p-shade"></div>
+        <div class="p-gloss"></div>
+        <div class="p-top">
+          <span class="p-day">DAY ${d.n}</span>
+          ${d.n === sug ? '<span class="p-next">UP NEXT</span>' : last ? `<span class="p-last">✓ ${fmtDate(last.date)}</span>` : ""}
+        </div>
+        <div class="p-body">
+          <h2 class="p-title">${d.title.replace(/ \+ /g, "<br>+ ")}</h2>
+          <div class="p-meta"><span>5 moves</span><span class="p-mins"></span><span>${dumbbellRange(d)}</span></div>
+          <ol class="p-moves">${d.moves.map((k, j) => `<li data-j="${j}"><span>${EX[k].name}</span><em>${EX[k].reps}</em></li>`).join("")}</ol>
+          <button class="p-go">START <kbd>Enter</kbd></button>
+        </div>`;
+      setImg(p.querySelector(".p-photo"), previewVideo(d.moves[0]));
+      p.addEventListener("click", (e) => {
+        if (i !== focus) { setFocus(i); return; }
+        if (e.target.closest(".p-go") || e.target.closest(".p-art") || e.target.closest(".p-shade")) startSession(d.n);
+      });
+      p.querySelector(".p-go").addEventListener("click", (e) => { e.stopPropagation(); if (i === focus) startSession(d.n); });
+      wrap.appendChild(p);
+      return p;
+    });
+    layout(true);
+  }
+
+  function layout(instant) {
+    const n = panels.length;
+    panels.forEach((p, i) => {
+      // circular: one panel on the left, the rest on the right (for 4 days: -1, 0, 1, 2)
+      const d = (((i - focus) % n) + n + 1) % n - 1, a = Math.abs(d), s = Math.sign(d);
+      const prev = p.dataset.d === undefined ? d : +p.dataset.d;
+      p.dataset.d = d;
+      p.classList.toggle("focused", d === 0);
+      // a panel wrapping from one end to the other jumps instead of sweeping through the front
+      p.classList.toggle("instant", !!instant || Math.abs(prev - d) > 1);
+      p.style.setProperty("--d", d);
+      p.style.setProperty("--a", a);
+      p.style.setProperty("--s", s);
+      p.style.zIndex = 10 - a;
+    });
+    const day = DAYS[focus];
+    document.documentElement.style.setProperty("--accent", day.color);
+    setImg($("ambientImg"), previewVideo(day.moves[0]));
+    renderRounds();
+  }
+
+  function setFocus(i) {
+    i = ((i % DAYS.length) + DAYS.length) % DAYS.length;
+    if (i === focus) return;
+    focus = i;
+    sfx("move");
+    layout(false);
+    startPreview();
+  }
+
+  function renderRounds() {
+    const el = $("roundsPick");
+    el.innerHTML = "";
+    for (let r = 1; r <= 3; r++) {
+      const b = document.createElement("button");
+      b.textContent = r;
+      b.className = r === settings.rounds ? "on" : "";
+      b.onclick = () => setRounds(r);
+      el.appendChild(b);
+    }
+    $("roundsTime").textContent = minutesFor(settings.rounds);
+    panels.forEach((p) => (p.querySelector(".p-mins").textContent = minutesFor(settings.rounds)));
+  }
+  function setRounds(r) {
+    r = Math.max(1, Math.min(3, r));
+    if (r === settings.rounds) { sfx("edge"); return; }
+    settings.rounds = r; save("rounds"); sfx("tick"); renderRounds();
+  }
+
+  function renderStats() {
+    const h = history(), st = streak(), sug = suggestedDay();
+    const last = h[h.length - 1];
+    $("stats").innerHTML = `
+      <div class="stat"><b>${st}</b><span>day streak${st ? " 🔥" : ""}</span></div>
+      <div class="stat"><b>${h.length}</b><span>workouts</span></div>
+      <div class="stat wide"><b>${last ? "Day " + last.day : "—"}</b><span>${last ? "last, " + fmtDate(last.date) : "nothing yet"}</span></div>
+      <div class="stat wide"><b>Day ${sug}</b><span>up next</span></div>`;
+  }
+
+  function renderSettings() {
+    segmented($("restSeg"), [[20, "20s"], [30, "30s"], [45, "45s"], [0, "None"]], settings.rest, (v) => { settings.rest = v; save("rest"); renderSettings(); });
+    segmented($("beepSeg"), [[true, "On"], [false, "Off"]], settings.beeps, (v) => { settings.beeps = v; save("beeps"); renderSettings(); });
+    $("rules").innerHTML = window.RULES.map((r) => `<li>${r}</li>`).join("");
+  }
   function segmented(el, options, value, onPick) {
     el.innerHTML = "";
     for (const [val, label] of options) {
       const b = document.createElement("button");
       b.textContent = label;
       b.className = val === value ? "on" : "";
-      b.onclick = () => { onPick(val); };
+      b.onclick = () => onPick(val);
       el.appendChild(b);
     }
   }
-  function dumbbellText(n) { return n === 0 ? "No weight" : n === 1 ? "1 dumbbell" : "2 dumbbells"; }
-  function minutesFor(r) { return ["", "9–10 min", "14–15 min", "18–20 min"][r] || ""; }
-
-  function renderHome() {
-    segmented($("roundsSeg"), [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (v) => { settings.rounds = v; save("rounds"); renderHome(); });
-    $("roundsHint").textContent = `≈ ${minutesFor(settings.rounds)}`;
-    segmented($("restSeg"), [[20, "20s"], [30, "30s"], [45, "45s"], [0, "None"]], settings.rest, (v) => { settings.rest = v; save("rest"); renderHome(); });
-    segmented($("beepSeg"), [[true, "On"], [false, "Off"]], settings.beeps, (v) => { settings.beeps = v; save("beeps"); renderHome(); });
-
-    const h = history(), sug = suggestedDay();
-    $("lastDone").innerHTML = h.length
-      ? `Last workout: <b>Day ${h[h.length - 1].day}</b> (${h[h.length - 1].rounds} round${h[h.length - 1].rounds > 1 ? "s" : ""}), ${fmtDate(h[h.length - 1].date)}. Up next: <b>Day ${sug}</b>.`
-      : `Start with <b>Day 1</b>, then rotate through Day 1 → 4.`;
-
-    const wrap = $("days");
-    wrap.innerHTML = "";
-    for (const d of DAYS) {
-      const card = document.createElement("article");
-      card.className = "day" + (d.n === sug ? " suggested" : "");
-      card.style.setProperty("--c", d.color);
-      const last = [...h].reverse().find((x) => x.day === d.n);
-      card.innerHTML = `
-        ${d.n === sug ? '<div class="up-next">UP NEXT</div>' : ""}
-        <div class="day-num">DAY ${d.n}</div>
-        <h3>${d.title}</h3>
-        <p class="focus">${d.focus}</p>
-        <ol class="move-list">${d.moves.map((k) => `
-          <li>
-            <span class="mv-name">${EX[k].name}</span>
-            <span class="mv-reps">${EX[k].reps}</span>
-            <span class="mv-db">${dumbbellText(EX[k].dumbbells)}</span>
-            <button class="link" data-k="${k}" title="Paste your own YouTube link for this move">change video</button>
-          </li>`).join("")}
-        </ol>
-        <div class="day-foot">
-          <span class="muted">${last ? "Last done " + fmtDate(last.date) : "Not done yet"}</span>
-          <button class="start-btn">▶ Start Day ${d.n} <kbd>${d.n}</kbd></button>
-        </div>`;
-      card.querySelector(".start-btn").onclick = () => startSession(d.n);
-      card.querySelectorAll("button.link").forEach((b) => (b.onclick = () => customVideo(b.dataset.k)));
-      wrap.appendChild(card);
-    }
-    $("rules").innerHTML = `<h2>Quick rules</h2><ul>${window.RULES.map((r) => `<li>${r}</li>`).join("")}</ul>`;
+  const sheetOpen = () => !$("sheet").classList.contains("hidden");
+  function toggleSheet(open) {
+    $("sheet").classList.toggle("hidden", !open);
+    if (open) renderSettings();
   }
 
-  function customVideo(key) {
-    const cur = currentVideo(key);
-    const url = prompt(`Paste a YouTube link for "${EX[key].name}".\n(Leave empty to go back to the built-in video.)`, `https://youtu.be/${cur.id}`);
-    if (url === null) return;
-    if (url.trim() === "") { store.set("custom:" + key, null); store.set("vidx:" + key, 0); return; }
-    const v = parseYouTube(url);
-    if (!v) return alert("That doesn't look like a YouTube link.");
-    store.set("custom:" + key, v);
-    store.set("vidx:" + key, 0);
+  function renderHome() {
+    focus = Math.min(Math.max(focus, 0), DAYS.length - 1);
+    renderStats();
+    buildCarousel();
+    startPreview();
+  }
+
+  // Tilt the focused panel toward the mouse for a bit of depth.
+  $("carousel").addEventListener("mousemove", (e) => {
+    const p = panels[focus];
+    if (!p) return;
+    const r = p.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+    const inside = Math.abs(x) < 0.7 && Math.abs(y) < 0.7;
+    p.style.setProperty("--tx", inside ? (x * 10).toFixed(2) + "deg" : "0deg");
+    p.style.setProperty("--ty", inside ? (-y * 8).toFixed(2) + "deg" : "0deg");
+    p.style.setProperty("--gx", ((x + 0.5) * 100).toFixed(1) + "%");
+    p.style.setProperty("--gy", ((y + 0.5) * 100).toFixed(1) + "%");
+  });
+  $("carousel").addEventListener("mouseleave", () => {
+    const p = panels[focus];
+    if (p) { p.style.setProperty("--tx", "0deg"); p.style.setProperty("--ty", "0deg"); }
+  });
+  let wheelLock = 0;
+  $("carousel").addEventListener("wheel", (e) => {
+    const dv = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(dv) < 12 || Date.now() < wheelLock) return;
+    wheelLock = Date.now() + 350;
+    setFocus(focus + Math.sign(dv), Math.sign(dv));
+  }, { passive: true });
+
+  // ---------- start-screen preview player (focused panel only) ----------
+  let preview = null, previewTimer = null, previewIdx = 0, previewGen = 0;
+  function stopPreview() {
+    clearTimeout(previewTimer);
+    previewGen++;
+    if (preview) { try { preview.destroy(); } catch {} preview = null; }
+    document.querySelectorAll(".p-vid").forEach((v) => { v.innerHTML = ""; v.classList.remove("live"); });
+    document.querySelectorAll(".p-moves li").forEach((li) => li.classList.remove("on"));
+  }
+  function startPreview() {
+    stopPreview();
+    if (view !== "home" || !panels[focus]) return;
+    // On touch screens YouTube draws its dark tap-to-control overlay on top, so stick to the still photo there.
+    if (matchMedia("(pointer: coarse)").matches) return;
+    const gen = previewGen, p = panels[focus], day = DAYS[focus];
+    previewIdx = 0;
+    markPreviewMove(p, 0);
+    ytReady.then(() => {
+      if (gen !== previewGen) return;
+      const holder = document.createElement("div");
+      p.querySelector(".p-vid").appendChild(holder);
+      preview = new YT.Player(holder, {
+        host: "https://www.youtube-nocookie.com",
+        videoId: previewVideo(day.moves[0]).id,
+        playerVars: { autoplay: 1, mute: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0, loop: 1, playlist: previewVideo(day.moves[0]).id },
+        events: {
+          onReady: (ev) => { if (gen === previewGen) { ev.target.mute(); ev.target.playVideo(); } },
+          onStateChange: (ev) => {
+            if (gen !== previewGen) return;
+            const vid = p.querySelector(".p-vid");
+            if (ev.data === YT.PlayerState.PLAYING) {
+              // let YouTube's title overlay fade before revealing
+              setTimeout(() => { if (gen === previewGen) vid.classList.add("live"); }, 900);
+              clearTimeout(previewTimer);
+              previewTimer = setTimeout(() => cyclePreview(gen, p, day), PREVIEW_SECS * 1000);
+            }
+            if (ev.data === YT.PlayerState.ENDED) ev.target.seekTo(0, true);
+          },
+        },
+      });
+    });
+  }
+  function cyclePreview(gen, p, day) {
+    if (gen !== previewGen || !preview) return;
+    previewIdx = (previewIdx + 1) % day.moves.length;
+    const v = previewVideo(day.moves[previewIdx]);
+    const vid = p.querySelector(".p-vid");
+    vid.classList.remove("live");
+    setImg(p.querySelector(".p-photo"), v);
+    markPreviewMove(p, previewIdx);
+    setTimeout(() => { if (gen === previewGen && preview) preview.loadVideoById(v.id); }, 350);
+  }
+  function markPreviewMove(p, j) {
+    p.querySelectorAll(".p-moves li").forEach((li) => li.classList.toggle("on", +li.dataset.j === j));
   }
 
   // ---------- SESSION ----------
@@ -148,6 +315,7 @@
   function startSession(n) {
     const day = DAYS.find((d) => d.n === n);
     unlockAudio();
+    sfx("start");
     S = { day, rounds: settings.rounds, steps: buildSteps(day, settings.rounds), i: 0, paused: false, started: Date.now() };
     document.documentElement.style.setProperty("--accent", day.color);
     show("session");
@@ -160,8 +328,6 @@
     S.i = Math.max(0, Math.min(i, S.steps.length - 1));
     const st = S.steps[S.i];
     S.paused = false;
-    S.stepStart = Date.now();
-    S.pausedAccum = 0;
     if (st.type === "rest") {
       S.remaining = st.secs;
     } else if (EX[st.key].timed) {
@@ -278,7 +444,6 @@
     enterStep(S.i + 1);
   }
   function back() {
-    // go to the previous exercise (skip back over rests)
     let j = S.i - 1;
     while (j > 0 && S.steps[j].type === "rest") j--;
     enterStep(Math.max(0, j));
@@ -305,10 +470,12 @@
     store.set("history", h.slice(-200));
     beep(523, 0.15); setTimeout(() => beep(659, 0.15), 160); setTimeout(() => beep(784, 0.3), 320);
     endSession();
-    $("doneTitle").textContent = `Day ${S.day.n} done! 🎉`;
+    $("doneTitle").textContent = `Day ${S.day.n} done!`;
     const mins = Math.max(1, Math.round((Date.now() - S.started) / 60000));
     $("doneSub").textContent = `${S.rounds} round${S.rounds > 1 ? "s" : ""} of ${S.day.title} in about ${mins} minute${mins > 1 ? "s" : ""}.`;
-    $("doneNext").textContent = `Next time: Day ${suggestedDay()} — ${DAYS[suggestedDay() - 1].title}`;
+    const st = streak();
+    $("doneNext").textContent = `${st > 1 ? `🔥 ${st}-day streak · ` : ""}Next time: Day ${suggestedDay()} — ${DAYS[suggestedDay() - 1].title}`;
+    focus = suggestedDay() - 1;
     show("done");
   }
 
@@ -320,9 +487,12 @@
     setTimeout(() => f.remove(), 1600);
   }
 
-  // ---------- YouTube player ----------
+  // ---------- YouTube ----------
+  let ytResolve;
+  const ytReady = new Promise((r) => (ytResolve = r));
   let player = null, playerReady = false, pendingVideo = null;
   window.onYouTubeIframeAPIReady = () => {
+    ytResolve();
     player = new YT.Player("player", {
       host: "https://www.youtube-nocookie.com",
       playerVars: { autoplay: 1, mute: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1, iv_load_policy: 3, disablekb: 1, fs: 0 },
@@ -347,6 +517,7 @@
     const v = currentVideo(key);
     $("videoBox").className = "video-box " + (v.shape === "tall" ? "tall" : "wide");
     $("videoError").classList.add("hidden");
+    setImg($("sessionBgImg"), v);
     if (!playerReady) { pendingVideo = v; return; }
     playVideo(v);
   }
@@ -380,15 +551,23 @@
 
   let actx = null;
   function unlockAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {} }
-  function beep(freq, dur) {
+  function beep(freq, dur, vol = 0.35, type = "sine", toFreq) {
     if (!settings.beeps || !actx) return;
-    const o = actx.createOscillator(), g = actx.createGain();
-    o.frequency.value = freq; o.type = "sine";
-    g.gain.setValueAtTime(0.0001, actx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.35, actx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+    o.frequency.setValueAtTime(freq, t); o.type = type;
+    if (toFreq) o.frequency.exponentialRampToValueAtTime(toFreq, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g).connect(actx.destination);
-    o.start(); o.stop(actx.currentTime + dur + 0.02);
+    o.start(); o.stop(t + dur + 0.02);
+  }
+  function sfx(kind) {
+    unlockAudio();
+    if (kind === "move") beep(520, 0.09, 0.12, "triangle", 880);
+    else if (kind === "tick") beep(1100, 0.05, 0.1, "square");
+    else if (kind === "edge") beep(160, 0.12, 0.15, "triangle", 110);
+    else if (kind === "start") { beep(440, 0.12, 0.2, "triangle", 660); setTimeout(() => beep(660, 0.25, 0.22, "triangle", 1320), 110); }
   }
 
   // ---------- input ----------
@@ -396,27 +575,32 @@
     if (e.target.tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
     if (view === "home") {
-      if (/^[1-4]$/.test(k)) { e.preventDefault(); startSession(+k); }
-      else if (k === "Enter") { e.preventDefault(); startSession(suggestedDay()); }
+      if (sheetOpen()) {
+        if (k === "Escape" || k === "s" || k === "S") { e.preventDefault(); toggleSheet(false); }
+        return;
+      }
+      const act = {
+        ArrowLeft: () => setFocus(focus - 1, -1), ArrowRight: () => setFocus(focus + 1, 1),
+        ArrowUp: () => setRounds(settings.rounds + 1), ArrowDown: () => setRounds(settings.rounds - 1),
+        Enter: () => startSession(DAYS[focus].n), " ": () => startSession(DAYS[focus].n),
+        s: () => toggleSheet(true), S: () => toggleSheet(true),
+      }[k];
+      if (act) { e.preventDefault(); act(); }
+      else if (/^[1-4]$/.test(k)) { e.preventDefault(); setFocus(+k - 1, 1); }
       return;
     }
     if (view === "done") {
       if (k === "Enter" || k === "Escape" || k === " ") { e.preventDefault(); show("home"); renderHome(); }
       return;
     }
-    // session
     const map = {
       " ": togglePause, Enter: next, ArrowRight: next, ArrowLeft: back, Backspace: back,
       f: toggleFullscreen, F: toggleFullscreen, m: toggleSound, M: toggleSound, v: otherVideo, V: otherVideo, Escape: quit,
     };
-    if (map[k]) {
-      e.preventDefault();
-      // first Escape while fullscreen is eaten by the browser; that's fine.
-      map[k]();
-    }
+    if (map[k]) { e.preventDefault(); map[k](); }
   });
   // Keep keyboard focus out of buttons so Space/Enter always go to our handler.
-  document.addEventListener("click", (e) => { if (e.target.closest("button")) e.target.closest("button").blur(); });
+  document.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) b.blur(); });
 
   $("shield").onclick = togglePause;
   $("pauseBtn").onclick = togglePause;
@@ -427,10 +611,16 @@
   $("fsBtn").onclick = toggleFullscreen;
   $("quitBtn").onclick = quit;
   $("homeBtn").onclick = () => { show("home"); renderHome(); };
+  $("settingsBtn").onclick = () => toggleSheet(true);
+  $("sheetClose").onclick = () => toggleSheet(false);
+  $("sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") toggleSheet(false); });
 
   renderHome();
   requestAnimationFrame((t) => { lastTick = t; tick(t); });
 
   // exposed for quick testing in the console
-  window.__workout = { get state() { return S; }, get player() { return player; }, startSession, next, back, togglePause };
+  window.__workout = {
+    get state() { return S; }, get player() { return player; }, get preview() { return preview; }, get focus() { return focus; },
+    startSession, next, back, togglePause, setFocus,
+  };
 })();
