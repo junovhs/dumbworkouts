@@ -13,7 +13,7 @@ Opens http://localhost:8765. (Opening `index.html` directly won't play the video
 ## Controls
 
 During a workout: Space pause/play · Space twice quickly (or Enter) next move · ← back · F full screen · M video sound · V try another video · H favorite · X never show this move · Esc quit.
-Start page: ◀ ▶ choose · Enter start · ▲ ▼ rounds · P my plan · S settings. À la carte: ▲ ▼ area · R shuffle · S save set · Del delete set.
+Start page: ◀ ▶ choose · Enter start · ▲ ▼ rounds · P my plan · C calendar · S settings. À la carte: ▲ ▼ area · R shuffle · S save set · Del delete set.
 After a workout: 1–3 rate how it felt · Y accept the suggested change.
 
 Moves, cues and videos: `data.js` (program days, muscles) and `library.js` (extra moves). Plan generator, difficulty levels and skip tags: `plan.js`.

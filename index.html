@@ -26,6 +26,7 @@
       <div class="hud-left">
         <button class="hud-btn" id="settingsBtn"><kbd>S</kbd> Settings</button>
         <button class="hud-btn" id="planBtn"><kbd>P</kbd> My plan</button>
+        <button class="hud-btn" id="calBtn"><kbd>C</kbd> Calendar</button>
       </div>
 
       <div class="rounds">
@@ -108,6 +109,21 @@
     </header>
     <div class="wz-body" id="wzBody"></div>
     <footer class="key-hints menu-keys" id="wzKeys"></footer>
+  </main>
+
+  <!-- CALENDAR -->
+  <main id="calendar" class="view hidden">
+    <div class="ambient"></div>
+    <header class="menu-head">
+      <button class="hud-btn" id="calBack">◀ Back <kbd>Esc</kbd></button>
+      <h1>Progress</h1>
+      <div class="cal-nav"><button class="icon-btn" id="calPrev">◀</button><b id="calTitle"></b><button class="icon-btn" id="calNext">▶</button></div>
+    </header>
+    <div class="cal-body">
+      <section class="cal-grid" id="calGrid"></section>
+      <aside class="cal-side" id="calStats"></aside>
+    </div>
+    <footer class="key-hints menu-keys"><span><kbd>◀</kbd><kbd>▶</kbd> Month</span><span><kbd>T</kbd> Today</span><span><kbd>Esc</kbd> Back</span></footer>
   </main>
 
   <!-- SESSION -->

@@ -95,7 +95,7 @@
   let view = "home";
   function show(v) {
     view = v;
-    for (const id of ["home", "menu", "wizard", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
+    for (const id of ["home", "menu", "wizard", "calendar", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
     if (v === "home") startPreview(); else stopPreview();
   }
 
@@ -718,6 +718,89 @@
     feelOffer = null;
   }
 
+
+  // ---------- CALENDAR: what you did, month by month ----------
+  const weekGoal = () => (plan ? plan.answers.perWeek : 4);
+  // older history entries lack title/color: fill them from the classic days
+  function entryInfo(x) {
+    const d = typeof x.day === "number" && !x.prog ? DAYS[x.day - 1] : null;
+    return { title: x.title || (x.custom ? x.custom : d ? `Day ${d.n} · ${d.title}` : "Workout"), color: x.color || (d ? d.color : "#f5b82e") };
+  }
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  function byDay() {
+    const m = new Map();
+    for (const x of history()) { const k = ymd(new Date(x.date)); if (!m.has(k)) m.set(k, []); m.get(k).push(x); }
+    return m;
+  }
+  const monday = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  function weeksOnTarget(days) {
+    // consecutive weeks hitting the goal; this week counts once it's hit, and doesn't break the run before then
+    let n = 0, wk = monday(new Date());
+    const count = (start) => { let c = 0; for (let i = 0; i < 7; i++) { const d = new Date(start); d.setDate(d.getDate() + i); if (days.has(ymd(d))) c++; } return c; };
+    if (count(wk) >= weekGoal()) n++;
+    for (;;) { wk.setDate(wk.getDate() - 7); if (count(wk) >= weekGoal()) n++; else break; }
+    return n;
+  }
+  let calMonth = null, calSel = null;
+  function openCalendar() {
+    stopPreview();
+    const now = new Date();
+    calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    calSel = ymd(now);
+    show("calendar");
+    document.documentElement.style.setProperty("--accent", "#2be38f");
+    sfx("start");
+    renderCalendar();
+  }
+  function calShift(n) { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + n, 1); sfx("move"); renderCalendar(); }
+  function renderCalendar() {
+    const days = byDay(), today = ymd(new Date()), h = history();
+    $("calTitle").textContent = calMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const start = monday(calMonth);
+    let cells = "";
+    for (let i = 0; i < 42; i++) {
+      const d = new Date(start); d.setDate(d.getDate() + i);
+      if (i === 35 && d.getMonth() !== calMonth.getMonth()) break;
+      const k = ymd(d), list = days.get(k) || [];
+      cells += `<button class="cday${d.getMonth() !== calMonth.getMonth() ? " out" : ""}${k === today ? " today" : ""}${k === calSel ? " sel" : ""}${list.length ? " did" : ""}" data-k="${k}">
+        <span class="cnum">${d.getDate()}</span>
+        ${list.map((x) => { const e = entryInfo(x); return `<span class="cchip" style="--c:${e.color}">${e.title.replace(/^Day \d+ · /, "")}</span>`; }).join("")}
+      </button>`;
+    }
+    $("calGrid").innerHTML = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => `<div class="cwd">${w}</div>`).join("") + cells;
+    $("calGrid").querySelectorAll(".cday").forEach((b) => (b.onclick = () => { calSel = b.dataset.k; sfx("tick"); renderCalendar(); }));
+
+    // stats
+    const wk = monday(new Date());
+    let thisWeek = 0;
+    for (let i = 0; i < 7; i++) { const d = new Date(wk); d.setDate(d.getDate() + i); if (days.has(ymd(d))) thisWeek++; }
+    const inMonth = h.filter((x) => { const d = new Date(x.date); return d.getMonth() === calMonth.getMonth() && d.getFullYear() === calMonth.getFullYear(); });
+    const mins = inMonth.reduce((t, x) => t + (x.minutes || 0), 0);
+    const goal = weekGoal();
+    const feels = h.filter((x) => x.feel).slice(-10);
+    const fc = (v) => feels.filter((x) => x.feel === v).length;
+    $("calStats").innerHTML = `
+      <div class="cgoal">
+        <div class="cgoal-h"><b>This week</b><span>${thisWeek} of ${goal} days</span></div>
+        <div class="cgoal-bar">${Array.from({ length: goal }, (_, i) => `<i class="${i < thisWeek ? "on" : ""}"></i>`).join("")}</div>
+      </div>
+      <div class="cstats">
+        <div class="stat"><b>${streak()}</b><span>day streak</span></div>
+        <div class="stat"><b>${weeksOnTarget(days)}</b><span>weeks on goal</span></div>
+        <div class="stat"><b>${inMonth.length}</b><span>this month</span></div>
+        <div class="stat"><b>${mins}</b><span>minutes this month</span></div>
+        <div class="stat"><b>${h.length}</b><span>all-time</span></div>
+        <div class="stat"><b>${settings.rounds}</b><span>rounds now</span></div>
+      </div>
+      ${feels.length ? `<div class="cfeel"><b>How the last ${feels.length} felt</b>
+        <div class="cfeel-bar">${feels.map((x) => `<i class="f-${x.feel}" title="${x.feel}"></i>`).join("")}</div>
+        <span>${fc("easy")} too easy · ${fc("right")} just right · ${fc("hard")} too hard</span></div>` : ""}
+      <div class="csel">
+        <b>${new Date(calSel + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</b>
+        ${(days.get(calSel) || []).map((x) => { const e = entryInfo(x); return `<div class="crow" style="--c:${e.color}"><span>${e.title}</span><em>${x.rounds} round${x.rounds > 1 ? "s" : ""} · ${Math.max(1, x.minutes || 0)} min${x.feel ? " · " + { easy: "too easy", right: "just right", hard: "too hard" }[x.feel] : ""}</em></div>`; }).join("") || `<div class="cnone">${calSel === today ? "Nothing yet today. Let's go!" : "Rest day"}</div>`}
+      </div>`;
+  }
+
   // ---------- start-screen preview player (focused panel only) ----------
   let preview = null, previewTimer = null, previewIdx = 0, previewGen = 0;
   function stopPreview() {
@@ -1082,7 +1165,7 @@
         return;
       }
       const act = {
-        p: openWizard, P: openWizard,
+        p: openWizard, P: openWizard, c: openCalendar, C: openCalendar,
         ArrowLeft: () => setFocus(focus - 1, -1), ArrowRight: () => setFocus(focus + 1, 1),
         ArrowUp: () => setRounds(settings.rounds + 1), ArrowDown: () => setRounds(settings.rounds - 1),
         Enter: () => activate(focus), " ": () => activate(focus),
@@ -1104,6 +1187,12 @@
       return;
     }
     if (view === "wizard") { wizardKey(e); return; }
+    if (view === "calendar") {
+      const act = { ArrowLeft: () => calShift(-1), ArrowRight: () => calShift(1), t: () => openCalendar(), T: () => openCalendar(),
+        Escape: () => { show("home"); renderHome(); }, Backspace: () => { show("home"); renderHome(); }, c: () => { show("home"); renderHome(); }, C: () => { show("home"); renderHome(); } }[k];
+      if (act) { e.preventDefault(); act(); }
+      return;
+    }
     if (view === "done") {
       if (k === "Enter" || k === "Escape" || k === " ") { e.preventDefault(); show("home"); renderHome(); }
       else if (/^[1-3]$/.test(k)) { e.preventDefault(); rateFeel(FEEL[+k - 1][0]); }
@@ -1144,6 +1233,11 @@
   $("homeBtn").onclick = () => { show("home"); renderHome(); };
   $("settingsBtn").onclick = () => toggleSheet(true);
   $("planBtn").onclick = openWizard;
+  $("calBtn").onclick = openCalendar;
+  $("stats").onclick = openCalendar;
+  $("calBack").onclick = () => { show("home"); renderHome(); };
+  $("calPrev").onclick = () => calShift(-1);
+  $("calNext").onclick = () => calShift(1);
   $("menuBack").onclick = () => { show("home"); renderHome(); };
   $("shuffleBtn").onclick = reshuffle;
   $("saveSetBtn").onclick = saveSet;
@@ -1160,6 +1254,6 @@
   window.__workout = {
     get state() { return S; }, get player() { return player; }, get preview() { return preview; }, get focus() { return focus; },
     startSession, next, back, togglePause, setFocus, buildSet, poolFor, openMenu, get menuSet() { return menuSet; },
-    openWizard, get wz() { return wz; }, get plan() { return plan; }, get cards() { return CARDS; },
+    openWizard, openCalendar, get wz() { return wz; }, get plan() { return plan; }, get cards() { return CARDS; },
   };
 })();
