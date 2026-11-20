@@ -51,12 +51,28 @@
     img.src = thumb(v);
   }
 
+  // ---------- program: your wizard plan, or the classic Days 1-4 ----------
+  const PL = window.PLANNER;
+  let plan = store.get("plan", null);
+  const program = () => (plan ? plan.days : DAYS);
+  const progId = () => (plan ? plan.id : "classic");
+  const savePlan = () => store.set("plan", plan);
+  // "swap a couple each week" plans refresh on the first visit of a new week
+  function refreshPlan() {
+    if (!plan || plan.answers.variety !== "weekly") return;
+    const wk = PL.weekKey(new Date());
+    if (plan.week === wk) return;
+    PL.weeklySwap(plan);
+    plan.week = wk;
+    savePlan();
+  }
+
   // ---------- history ----------
   const history = () => store.get("history", []);
   function suggestedDay() {
-    const h = history();
-    const last = [...h].reverse().find((x) => typeof x.day === "number");
-    return last ? (last.day % DAYS.length) + 1 : 1;
+    const h = history(), id = progId(), len = program().length;
+    const last = [...h].reverse().find((x) => typeof x.day === "number" && (x.prog || "classic") === id);
+    return last ? (last.day % len) + 1 : 1;
   }
   const dayKey = (d) => new Date(d).toDateString();
   function fmtDate(iso) {
@@ -79,7 +95,7 @@
   let view = "home";
   function show(v) {
     view = v;
-    for (const id of ["home", "menu", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
+    for (const id of ["home", "menu", "wizard", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
     if (v === "home") startPreview(); else stopPreview();
   }
 
@@ -111,30 +127,57 @@
 
   // ---------- HOME: 3D carousel ----------
   const dumbbellText = (n) => (n === 0 ? "No weight" : n === 1 ? "1 dumbbell" : "2 dumbbells");
-  const minutesFor = (r) => ["", "9–10 min", "14–15 min", "18–20 min"][r] || "";
+  // rough length: ~70 s per move (both sides, setup) plus rests
+  const estMinutes = (moves, rounds, rest = settings.rest) =>
+    Math.max(1, Math.round((moves * rounds * (70 + rest) - rest + (rounds - 1) * (Math.max(rest, ROUND_REST) - rest) + READY_SECS) / 60));
+  const minutesFor = (r, moves = 5) => `~${estMinutes(moves, r)} min`;
   function dumbbellRange(day) {
     const ns = day.moves.map((k) => EX[k].dumbbells).filter((n) => n > 0);
+    if (!ns.length) return "No weight";
     const lo = Math.min(...ns), hi = Math.max(...ns);
     return lo === hi ? dumbbellText(lo) : `${lo}–${hi} dumbbells`;
   }
 
   const MENU_CARD = { menu: true, title: "À la carte", color: "#f5b82e",
     moves: ["couchHipThrust", "sumoSquat", "curtsyLunge", "fireHydrant", "singleLegRdl"] };
-  const CARDS = [...DAYS, MENU_CARD];
-  let focus = suggestedDay() - 1;
+  const PLAN_CARD = { plan: true, title: "My plan", color: "#22c38e",
+    moves: ["gobletSquat", "floorPress", "couchHipThrust", "bentOverRow", "deadBug"] };
+  let CARDS = [];
+  let focus = 0;
   let panels = [];
-  function activate(i) { const c = CARDS[i]; c.menu ? openMenu() : startSession(c.n); }
+  function activate(i) { const c = CARDS[i]; c.menu ? openMenu() : c.plan ? openWizard() : startSession(c); }
+  const FOCUS_LABEL = { balanced: "Balanced", booty: "Booty focus", lower: "Legs & butt", upper: "Upper body" };
+  const LEVEL_LABEL = { new: "Brand new", back: "Getting back into it", regular: "Regular" };
+  function planLines() {
+    if (!plan) return [["Now using", "Classic Days 1–4"], ["Answer", "4 quick taps"], ["Get", "workouts built for you"], ["Then", "it learns as you go"]];
+    const a = plan.answers;
+    return [["Level", LEVEL_LABEL[a.level]], ["Focus", FOCUS_LABEL[a.focus]], ["Per week", `${a.perWeek} days`],
+      ["Dumbbells", ["None", "One", "A pair"][a.dumbbells]], ["Learned", `${favs().length} ♥ · ${nope().length} skipped`]];
+  }
 
   function buildCarousel() {
     const wrap = $("carousel");
     wrap.innerHTML = "";
-    const h = history(), sug = suggestedDay();
+    const h = history(), sug = suggestedDay(), id = progId();
     panels = CARDS.map((d, i) => {
-      const last = [...h].reverse().find((x) => x.day === d.n);
+      const last = d.n && [...h].reverse().find((x) => x.day === d.n && (x.prog || "classic") === id);
       const p = document.createElement("article");
-      p.className = "p3d" + (d.menu ? " menu-card" : "");
+      p.className = "p3d" + (d.menu ? " menu-card" : "") + (d.plan ? " plan-card" : "");
       p.style.setProperty("--c", d.color);
-      p.innerHTML = d.menu ? `
+      p.innerHTML = d.plan ? `
+        <div class="p-art">
+          <img class="p-photo" alt="">
+          <div class="p-vid"></div>
+        </div>
+        <div class="p-shade"></div>
+        <div class="p-gloss"></div>
+        <div class="p-top"><span class="p-day">${plan ? "YOUR PLAN" : "SET UP"}</span>${plan ? "" : '<span class="p-next">NEW</span>'}</div>
+        <div class="p-body">
+          <h2 class="p-title">${plan ? "EDIT<br>MY PLAN" : "BUILD<br>MY PLAN"}</h2>
+          <div class="p-meta"><span>${plan ? plan.days.length + " workouts" : "about 1 minute"}</span><span>${plan ? "rotation" : "4 questions"}</span></div>
+          <ol class="p-moves">${planLines().map(([k, v], j) => `<li data-j="${j}"><span>${k}</span><em>${v}</em></li>`).join("")}</ol>
+          <button class="p-go">${plan ? "CHANGE PLAN" : "LET'S GO"} <kbd>Enter</kbd></button>
+        </div>` : d.menu ? `
         <div class="p-art">
           <img class="p-photo" alt="">
           <div class="p-vid"></div>
@@ -144,7 +187,7 @@
         <div class="p-top"><span class="p-day">BUILD YOUR OWN</span><span class="p-next">NEW</span></div>
         <div class="p-body">
           <h2 class="p-title">À LA<br>CARTE</h2>
-          <div class="p-meta"><span>${Object.keys(EX).length} moves</span><span>pick a body area</span></div>
+          <div class="p-meta"><span>${Object.keys(EX).length} moves</span><span>${savedSets().length ? savedSets().length + " saved sets" : "pick a body area"}</span></div>
           <ol class="p-moves">${AREAS.map((a, j) => `<li data-j="${j}"><span>${a.name}</span><em>${poolFor(a.id).length} moves</em></li>`).join("")}</ol>
           <button class="p-go">OPEN MENU <kbd>Enter</kbd></button>
         </div>` : `
@@ -155,12 +198,12 @@
         <div class="p-shade"></div>
         <div class="p-gloss"></div>
         <div class="p-top">
-          <span class="p-day">DAY ${d.n}</span>
+          <span class="p-day">${plan ? "WORKOUT" : "DAY"} ${d.n}</span>
           ${d.n === sug ? '<span class="p-next">UP NEXT</span>' : last ? `<span class="p-last">✓ ${fmtDate(last.date)}</span>` : ""}
         </div>
         <div class="p-body">
           <h2 class="p-title">${d.title.replace(/ \+ /g, "<br>+ ")}</h2>
-          <div class="p-meta"><span>5 moves</span><span class="p-mins"></span><span>${dumbbellRange(d)}</span></div>
+          <div class="p-meta"><span>${d.moves.length} moves</span><span class="p-mins" data-n="${d.moves.length}"></span><span>${dumbbellRange(d)}</span></div>
           <ol class="p-moves">${d.moves.map((k, j) => `<li data-j="${j}"><span>${EX[k].name}</span><em>${EX[k].reps}</em></li>`).join("")}</ol>
           <button class="p-go">START <kbd>Enter</kbd></button>
         </div>`;
@@ -215,7 +258,7 @@
       el.appendChild(b);
     }
     $("roundsTime").textContent = minutesFor(settings.rounds);
-    panels.forEach((p) => { const m = p.querySelector(".p-mins"); if (m) m.textContent = minutesFor(settings.rounds); });
+    panels.forEach((p) => { const m = p.querySelector(".p-mins"); if (m) m.textContent = minutesFor(settings.rounds, +m.dataset.n); });
   }
   function setRounds(r) {
     r = Math.max(1, Math.min(3, r));
@@ -230,7 +273,7 @@
       <div class="stat"><b>${st}</b><span>day streak${st ? " 🔥" : ""}</span></div>
       <div class="stat"><b>${h.length}</b><span>workouts</span></div>
       <div class="stat wide"><b>${last ? (last.custom || "Day " + last.day) : "—"}</b><span>${last ? "last, " + fmtDate(last.date) : "nothing yet"}</span></div>
-      <div class="stat wide"><b>Day ${sug}</b><span>up next</span></div>`;
+      <div class="stat wide"><b>${plan ? program()[sug - 1].title : "Day " + sug}</b><span>up next</span></div>`;
   }
 
   function renderSettings() {
@@ -254,7 +297,11 @@
     if (open) renderSettings();
   }
 
+  let focusSet = false;
   function renderHome() {
+    refreshPlan();
+    CARDS = [...program(), MENU_CARD, PLAN_CARD];
+    if (!focusSet) { focus = suggestedDay() - 1; focusSet = true; }
     focus = Math.min(Math.max(focus, 0), CARDS.length - 1);
     renderStats();
     buildCarousel();
@@ -296,11 +343,18 @@
     { id: "upper", name: "Upper body", color: "#8a5cf6", blurb: "Chest, shoulders, back and arms" },
     { id: "arms", name: "Arms", color: "#3b82f6", blurb: "Biceps, triceps and grip" },
     { id: "full", name: "Full body", color: "#22c38e", blurb: "Legs, glutes, push, pull and core" },
+    { id: "favs", name: "♥ Favorites", color: "#ff5c8a", blurb: "Built from moves you've hearted" },
   ];
+  const savedSets = () => store.get("sets", []);
+  // menu list = body areas, then your saved sets
+  const menuItems = () => [...AREAS.map((a) => ({ kind: "area", ...a })), ...savedSets().map((x) => ({ kind: "set", ...x }))];
+  const curItem = () => menuItems()[menuArea] || menuItems()[0];
   const PATTERN_LABEL = { squat: "Squat", hinge: "Hinge", lunge: "Single-leg", bridge: "Bridge", side: "Side glutes", kickback: "Glute isolation", core: "Core", push: "Push", pull: "Pull", arms: "Arms" };
   const UPPER = ["chest", "shoulders", "back", "arms"];
   function poolFor(area) {
-    return Object.keys(EX).filter((k) => {
+    if (area === "favs") return favs().filter((k) => EX[k]);
+    const banned = new Set(nope());
+    return Object.keys(EX).filter((k) => !banned.has(k)).filter((k) => {
       const a = EX[k].areas || [];
       if (area === "full") return true;
       if (area === "upper") return a.some((x) => UPPER.includes(x));
@@ -347,7 +401,7 @@
     return picks.filter(Boolean);
   }
 
-  let menuArea = 0, menuSet = [];
+  let menuArea = 0, menuSet = [], menuDirty = false;
   function openMenu() {
     stopPreview();
     show("menu");
@@ -355,35 +409,64 @@
     selectArea(menuArea, true);
   }
   function selectArea(i, force) {
-    i = ((i % AREAS.length) + AREAS.length) % AREAS.length;
+    const n = menuItems().length;
+    i = ((i % n) + n) % n;
     if (i === menuArea && !force) return;
     menuArea = i;
     if (!force) sfx("move");
-    document.documentElement.style.setProperty("--accent", AREAS[i].color);
-    menuSet = buildSet(AREAS[i].id);
+    const it = curItem();
+    document.documentElement.style.setProperty("--accent", it.color);
+    menuSet = it.kind === "set" ? it.moves.filter((k) => EX[k]) : buildSet(it.id);
+    menuDirty = false;
     renderMenu();
   }
   function reshuffle() {
-    menuSet = buildSet(AREAS[menuArea].id, new Set(menuSet));
+    menuSet = buildSet(curItem().area || curItem().id, new Set(menuSet));
+    menuDirty = true;
     sfx("tick");
     renderMenu();
   }
+  function saveSet() {
+    const it = curItem(), sets = savedSets();
+    if (!menuSet.length) return;
+    if (it.kind === "set") {
+      const x = sets.find((y) => y.id === it.id);
+      x.moves = [...menuSet];
+      store.set("sets", sets);
+      menuDirty = false;
+      flash("SET UPDATED");
+      renderMenu();
+      return;
+    }
+    const name = prompt("Name this set", `${it.name.replace("♥ ", "")} set ${sets.filter((x) => x.area === it.id).length + 1}`);
+    if (!name) return;
+    sets.push({ id: "s" + Date.now().toString(36), name: name.slice(0, 40), area: it.id, color: it.color, moves: [...menuSet] });
+    store.set("sets", sets);
+    flash("SET SAVED");
+    selectArea(AREAS.length + sets.length - 1, true);
+  }
+  function deleteSet() {
+    const it = curItem();
+    if (it.kind !== "set" || !confirm(`Delete "${it.name}"?`)) return;
+    store.set("sets", savedSets().filter((x) => x.id !== it.id));
+    selectArea(0, true);
+  }
   function swapOne(j) {
-    const area = AREAS[menuArea].id, cur = menuSet[j], pat = EX[cur].pattern;
+    const area = curItem().area || curItem().id, cur = menuSet[j], pat = EX[cur].pattern;
     const pool = poolFor(area).filter((k) => !menuSet.includes(k));
     const same = pool.filter((k) => EX[k].pattern === pat);
     const k = pickFrom(same.length ? same : pool, new Set());
     if (!k) { sfx("edge"); return; }
-    menuSet[j] = k; sfx("tick"); renderMenu();
+    menuSet[j] = k; menuDirty = true; sfx("tick"); renderMenu();
   }
   function renderMenu() {
-    const area = AREAS[menuArea];
-    $("areas").innerHTML = AREAS.map((a, i) => `
-      <button class="area${i === menuArea ? " on" : ""}" data-i="${i}" style="--c:${a.color}">
-        <b>${a.name}</b><span>${poolFor(a.id).length} moves · ${a.blurb}</span>
+    const area = curItem(), items = menuItems(), fv = favs();
+    $("areas").innerHTML = items.map((a, i) => `${i === AREAS.length ? '<div class="areas-h">My sets</div>' : ""}
+      <button class="area${a.kind === "set" ? " saved" : ""}${i === menuArea ? " on" : ""}" data-i="${i}" style="--c:${a.color}">
+        <b>${a.name}</b><span>${a.kind === "set" ? `${a.moves.length} moves · saved` : a.id === "favs" && !fv.length ? "Tap ♡ on any move to add it" : `${poolFor(a.id).length} moves · ${a.blurb}`}</span>
       </button>`).join("");
     $("areas").querySelectorAll(".area").forEach((b) => (b.onclick = () => selectArea(+b.dataset.i)));
-    $("setTitle").textContent = `${area.name} workout`;
+    $("setTitle").textContent = area.kind === "set" ? area.name : `${area.name.replace("♥ ", "")} workout`;
     $("setSub").textContent = `${menuSet.length} moves · ${settings.rounds} round${settings.rounds > 1 ? "s" : ""} · ${minutesFor(settings.rounds)}`;
     $("setList").innerHTML = menuSet.map((k, j) => {
       const e = EX[k], v = previewVideo(k);
@@ -392,10 +475,16 @@
         <img class="sthumb" alt="" data-k="${k}">
         <div class="sinfo"><b>${e.name}</b><span>${e.reps} · ${dumbbellText(e.dumbbells)} · ${e.primary.map((m) => MUS[m].name).join(", ")}</span></div>
         <span class="spat">${PATTERN_LABEL[e.pattern] || ""}</span>
+        <button class="sfav${fv.includes(k) ? " on" : ""}" data-k="${k}" title="Favorite">${fv.includes(k) ? "♥" : "♡"}</button>
         <button class="sswap" data-j="${j}" title="Swap for a similar move">↻</button>
       </li>`;
     }).join("");
     $("setList").querySelectorAll(".sswap").forEach((b) => (b.onclick = () => swapOne(+b.dataset.j)));
+    $("setList").querySelectorAll(".sfav").forEach((b) => (b.onclick = () => { toggleFav(b.dataset.k); sfx("tick"); renderMenu(); }));
+    if (!menuSet.length) $("setList").innerHTML = `<li class="sempty">${area.id === "favs" ? "No favorites yet. Pick any body area and tap ♡ on the moves you like, or press H during a workout." : "Nothing here."}</li>`;
+    $("saveSetBtn").innerHTML = area.kind === "set" ? `✓ Save changes <kbd>S</kbd>` : `♥ Save set <kbd>S</kbd>`;
+    $("saveSetBtn").disabled = area.kind === "set" ? !menuDirty : !menuSet.length;
+    $("delSetBtn").classList.toggle("hidden", area.kind !== "set");
     $("setList").querySelectorAll(".sthumb").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
     const pri = new Set(menuSet.flatMap((k) => EX[k].primary));
     const sec = new Set(menuSet.flatMap((k) => EX[k].secondary).filter((m) => !pri.has(m)));
@@ -405,8 +494,228 @@
   }
   function startMenuSet() {
     if (!menuSet.length) return;
-    const a = AREAS[menuArea];
-    startSession({ n: null, custom: a.name, title: `${a.name} (à la carte)`, color: a.color, moves: [...menuSet] });
+    const a = curItem(), name = a.name.replace("♥ ", "");
+    startSession({ n: null, custom: name, title: a.kind === "set" ? name : `${name} (à la carte)`, color: a.color, moves: [...menuSet] });
+  }
+
+
+  // ---------- preferences learned from use ----------
+  const favs = () => store.get("favs", []);
+  const nope = () => store.get("nope", []);
+  function toggleFav(k) {
+    const f = favs(), i = f.indexOf(k);
+    i >= 0 ? f.splice(i, 1) : f.push(k);
+    store.set("favs", f);
+    syncPrefs();
+    return i < 0;
+  }
+  // keep the plan's generator inputs in step with what you've told us
+  function syncPrefs() {
+    if (!plan) return;
+    plan.answers.likes = favs();
+    plan.answers.dislikes = nope();
+    savePlan();
+  }
+  // "Not for me": never pick this move again, and replace it in the plan right away
+  function notForMe(k) {
+    const n = nope();
+    if (!n.includes(k)) n.push(k);
+    store.set("nope", n);
+    store.set("favs", favs().filter((x) => x !== k));
+    syncPrefs();
+    if (plan) for (const d of plan.days) {
+      const j = d.moves.indexOf(k);
+      if (j < 0) continue;
+      const alt = Object.keys(EX).filter((x) => EX[x].pattern === EX[k].pattern && !d.moves.includes(x) && PL.allowed(x, plan.answers));
+      if (alt.length) d.moves[j] = shuffle(alt)[0]; else d.moves.splice(j, 1);
+    }
+    savePlan();
+  }
+
+  // ---------- SETUP WIZARD: four one-tap questions ----------
+  const QUESTIONS = [
+    { id: "level", title: "How much have you lifted before?", options: [
+      ["new", "Brand new", "Simple moves while you learn the form"],
+      ["back", "Getting back into it", "Some experience, a bit rusty"],
+      ["regular", "Pretty regular", "Bring on the harder variations"]] },
+    { id: "focus", title: "What do you want most?", options: [
+      ["balanced", "Balanced", "Everything, evenly"],
+      ["booty", "Booty focus", "Extra glute days"],
+      ["lower", "Legs & butt", "Lower body first, some upper"],
+      ["upper", "Upper body", "Arms, shoulders, back and core"]] },
+    { id: "perWeek", title: "How many days a week?", options: [
+      [2, "2 days", "Two full-body workouts"], [3, "3 days", "Three different full-body workouts"],
+      [4, "4 days", "Lower and upper days take turns"], [5, "5+ days", "A longer rotation, muscles still get rest"]] },
+    { id: "dumbbells", title: "What dumbbells do you have?", options: [
+      [2, "A pair", "Two dumbbells (any weight)"], [1, "Just one", "We'll stick to one-dumbbell moves"], [0, "None yet", "Body-weight moves only"]] },
+  ];
+  const SKIPS = [["jump", "Jumping"], ["kneel", "Kneeling / all fours"], ["floor", "Lying on the floor"], ["lunge", "Lunges"], ["overhead", "Weights overhead"], ["balance", "One-leg balance"]];
+  let wz = null; // { step, cur, answers, draft }
+  function openWizard() {
+    stopPreview();
+    const prev = plan ? plan.answers : store.get("planAnswers", null);
+    wz = { step: 0, cur: 0, answers: { level: "back", focus: "balanced", perWeek: 4, dumbbells: 2, moves: 5, skip: [], variety: "weekly", ...(prev || {}) }, draft: null };
+    show("wizard");
+    document.documentElement.style.setProperty("--accent", PLAN_CARD.color);
+    sfx("start");
+    wzSyncCur();
+    renderWizard();
+  }
+  function wzSyncCur() {
+    const q = QUESTIONS[wz.step];
+    if (q) wz.cur = Math.max(0, q.options.findIndex((o) => o[0] === wz.answers[q.id]));
+  }
+  function wzPick(i) {
+    const q = QUESTIONS[wz.step];
+    wz.answers[q.id] = q.options[i][0];
+    wz.cur = i;
+    sfx("tick");
+    wzGo(1);
+  }
+  function wzGo(dir) {
+    const last = QUESTIONS.length; // the summary step
+    const nextStep = wz.step + dir;
+    if (nextStep < 0) { closeWizard(); return; }
+    if (nextStep > last) { savePlanFromWizard(); return; }
+    wz.step = nextStep;
+    if (wz.step === last) wzBuild(); else wzSyncCur();
+    sfx("move");
+    renderWizard();
+  }
+  function wzBuild() {
+    wz.draft = PL.generate({ ...wz.answers, likes: favs(), dislikes: nope() });
+  }
+  function closeWizard() { wz = null; show("home"); renderHome(); }
+  function savePlanFromWizard() {
+    plan = wz.draft;
+    store.set("planAnswers", wz.answers);
+    savePlan();
+    focus = 0; focusSet = true;
+    wz = null;
+    show("home"); renderHome();
+    flash("PLAN SAVED");
+  }
+  function useClassic() {
+    plan = null;
+    store.set("plan", null);
+    focus = suggestedDay() - 1; focusSet = true;
+    wz = null;
+    show("home"); renderHome();
+    flash("CLASSIC DAYS 1–4");
+  }
+  function renderWizard() {
+    const total = QUESTIONS.length;
+    $("wzPips").innerHTML = Array.from({ length: total + 1 }, (_, i) => `<span class="${i < wz.step ? "done" : i === wz.step ? "now" : ""}"></span>`).join("");
+    const q = QUESTIONS[wz.step];
+    if (q) {
+      $("wzBody").innerHTML = `
+        <div class="wz-q">
+          <div class="wz-count">Question ${wz.step + 1} of ${total}</div>
+          <h1>${q.title}</h1>
+          <div class="wz-opts n${q.options.length}">${q.options.map(([v, label, desc], i) => `
+            <button class="wz-opt${i === wz.cur ? " cur" : ""}${wz.answers[q.id] === v ? " on" : ""}" data-i="${i}">
+              <kbd>${i + 1}</kbd><b>${label}</b><span>${desc}</span>
+            </button>`).join("")}
+          </div>
+        </div>`;
+      $("wzBody").querySelectorAll(".wz-opt").forEach((b) => (b.onclick = () => wzPick(+b.dataset.i)));
+      $("wzKeys").innerHTML = `<span><kbd>◀</kbd><kbd>▶</kbd> Choose</span><span><kbd>Enter</kbd> Next</span><span><kbd>1</kbd>–<kbd>${q.options.length}</kbd> Pick</span><span><kbd>Backspace</kbd> Back</span>`;
+      return;
+    }
+    // summary
+    const d = wz.draft, a = wz.answers;
+    const split = a.perWeek >= 4;
+    $("wzBody").innerHTML = `
+      <div class="wz-sum">
+        <div class="wz-count">Your plan</div>
+        <h1>${d.days.length} workouts, ${a.moves} moves each</h1>
+        <p class="wz-note">${split ? "Lower-body and upper-body days take turns, so muscles get a day off in between." : "Each workout covers the whole body with different moves."}
+          Do them in order, as often as you like. Every week a couple of moves get swapped so it stays fresh.</p>
+        <div class="wz-days">${d.days.map((x) => `
+          <div class="wz-day" style="--c:${x.color}">
+            <div class="wz-dh"><span>${x.n}</span><b>${x.title}</b><em>~${estMinutes(x.moves.length, settings.rounds)} min</em></div>
+            <ol>${x.moves.map((k) => `<li>${EX[k].name}</li>`).join("")}</ol>
+          </div>`).join("")}
+        </div>
+        <div class="wz-skip"><span>Optional: leave out</span>${SKIPS.map(([f, label]) => `<button class="chip${a.skip.includes(f) ? " on" : ""}" data-f="${f}">${label}</button>`).join("")}</div>
+        <div class="wz-actions">
+          <button class="hud-btn" id="wzShuffle">↻ Reshuffle <kbd>R</kbd></button>
+          ${plan || history().length ? `<button class="hud-btn" id="wzClassic">Use classic Days 1–4 <kbd>C</kbd></button>` : ""}
+          <button class="big-btn" id="wzSave">Save plan <kbd>Enter</kbd></button>
+        </div>
+        <p class="wz-learn">After each workout you'll rate how it felt, and ♥ or skip moves. The plan adjusts as you go.</p>
+      </div>`;
+    $("wzBody").querySelectorAll(".chip").forEach((b) => (b.onclick = () => {
+      const f = b.dataset.f, i = a.skip.indexOf(f);
+      i >= 0 ? a.skip.splice(i, 1) : a.skip.push(f);
+      sfx("tick"); wzBuild(); renderWizard();
+    }));
+    $("wzShuffle").onclick = () => { sfx("tick"); wzBuild(); renderWizard(); };
+    $("wzSave").onclick = savePlanFromWizard;
+    if ($("wzClassic")) $("wzClassic").onclick = useClassic;
+    $("wzKeys").innerHTML = `<span><kbd>R</kbd> Reshuffle</span><span><kbd>Enter</kbd> Save plan</span><span><kbd>Backspace</kbd> Back</span>`;
+  }
+  function wizardKey(e) {
+    const k = e.key, q = QUESTIONS[wz.step];
+    const act = q ? {
+      ArrowLeft: () => { wz.cur = (wz.cur - 1 + q.options.length) % q.options.length; sfx("move"); renderWizard(); },
+      ArrowRight: () => { wz.cur = (wz.cur + 1) % q.options.length; sfx("move"); renderWizard(); },
+      ArrowUp: () => { wz.cur = (wz.cur - 1 + q.options.length) % q.options.length; sfx("move"); renderWizard(); },
+      ArrowDown: () => { wz.cur = (wz.cur + 1) % q.options.length; sfx("move"); renderWizard(); },
+      Enter: () => wzPick(wz.cur), " ": () => wzPick(wz.cur),
+      Backspace: () => wzGo(-1), Escape: closeWizard,
+    }[k] : {
+      r: () => { sfx("tick"); wzBuild(); renderWizard(); }, R: () => { sfx("tick"); wzBuild(); renderWizard(); },
+      c: () => (plan || history().length) && useClassic(), C: () => (plan || history().length) && useClassic(),
+      Enter: savePlanFromWizard, Backspace: () => wzGo(-1), Escape: closeWizard,
+    }[k];
+    if (act) { e.preventDefault(); act(); return; }
+    if (q && /^[1-9]$/.test(k) && +k <= q.options.length) { e.preventDefault(); wzPick(+k - 1); }
+  }
+
+  // ---------- after a workout: how did it feel? ----------
+  const FEEL = [["easy", "Too easy"], ["right", "Just right"], ["hard", "Too hard"]];
+  let feelOffer = null;
+  function renderFeel(picked) {
+    $("feelBtns").innerHTML = FEEL.map(([v, label], i) => `<button class="feel-btn${picked === v ? " on" : ""}" data-v="${v}"><kbd>${i + 1}</kbd> ${label}</button>`).join("");
+    $("feelBtns").querySelectorAll(".feel-btn").forEach((b) => (b.onclick = () => rateFeel(b.dataset.v)));
+    feelOffer = picked ? offerFor(picked) : null;
+    $("feelTip").innerHTML = feelOffer ? `${feelOffer.text} <button class="hud-btn" id="feelYes">${feelOffer.label} <kbd>Y</kbd></button>` : picked === "right" ? "Nice. We'll keep it right here." : "";
+    if (feelOffer) $("feelYes").onclick = acceptOffer;
+  }
+  function rateFeel(v) {
+    const h = history();
+    if (!h.length) return;
+    h[h.length - 1].feel = v;
+    store.set("history", h);
+    sfx("tick");
+    renderFeel(v);
+  }
+  function offerFor(v) {
+    const lvl = plan ? plan.answers.level : null, LV = ["new", "back", "regular"];
+    if (v === "easy") {
+      if (settings.rounds < 3) return { text: `Ready for more?`, label: `Do ${settings.rounds + 1} rounds next time`, act: () => { settings.rounds++; save("rounds"); } };
+      if (plan && lvl !== "regular") return { text: "Ready for harder moves?", label: "Use harder variations", act: () => { plan.answers.level = LV[LV.indexOf(lvl) + 1]; rebuildPlan(); } };
+    }
+    if (v === "hard") {
+      if (settings.rounds > 1) return { text: "Let's ease off.", label: `Go back to ${settings.rounds - 1} round${settings.rounds > 2 ? "s" : ""}`, act: () => { settings.rounds--; save("rounds"); } };
+      if (plan && lvl !== "new") return { text: "Let's ease off.", label: "Use simpler moves", act: () => { plan.answers.level = LV[LV.indexOf(lvl) - 1]; rebuildPlan(); } };
+      if (settings.rest < 45) return { text: "Take it slower.", label: "Rest 45 s between moves", act: () => { settings.rest = 45; save("rest"); } };
+    }
+    return null;
+  }
+  function rebuildPlan() {
+    const keepId = plan.id;
+    plan = PL.generate({ ...plan.answers, likes: favs(), dislikes: nope() });
+    plan.id = keepId; // same rotation, so "up next" carries on
+    savePlan();
+  }
+  function acceptOffer() {
+    if (!feelOffer) return;
+    feelOffer.act();
+    sfx("start");
+    $("feelTip").textContent = "Done! It'll be ready next time.";
+    feelOffer = null;
   }
 
   // ---------- start-screen preview player (focused panel only) ----------
@@ -483,7 +792,8 @@
   }
 
   function startSession(n) {
-    const day = typeof n === "object" ? n : DAYS.find((d) => d.n === n);
+    const d0 = typeof n === "object" ? n : program().find((d) => d.n === n);
+    const day = { ...d0, moves: [...d0.moves] }; // plan edits mid-workout don't reshuffle the running session
     unlockAudio();
     sfx("start");
     S = { day, rounds: settings.rounds, steps: buildSteps(day, settings.rounds), i: 0, paused: false, started: Date.now(), spaceBlockUntil: Date.now() + 600 };
@@ -530,7 +840,7 @@
     const key = isRest ? st.next : st.key;
     const e = EX[key];
     $("session").classList.toggle("resting", isRest);
-    $("tDay").textContent = S.day.custom ? `À la carte · ${S.day.custom}` : `Day ${S.day.n} · ${S.day.title}`;
+    $("tDay").textContent = S.day.custom ? `À la carte · ${S.day.custom}` : `${plan ? "Workout" : "Day"} ${S.day.n} · ${S.day.title}`;
     $("tRound").textContent = `Round ${st.round} of ${S.rounds}`;
     $("tMove").textContent = `Move ${st.idx + 1} of ${S.day.moves.length}`;
     $("phase").textContent = isRest ? `${st.label} · up next` : "Now";
@@ -548,6 +858,7 @@
     });
     renderTimer();
     renderPause();
+    renderFavBtn();
   }
 
   function setText(el, txt) { if (el.textContent !== txt) el.textContent = txt; }
@@ -639,19 +950,38 @@
   }
   function finish() {
     const h = history();
-    h.push({ day: S.day.custom ? null : S.day.n, custom: S.day.custom, rounds: S.rounds, date: new Date().toISOString(), minutes: Math.round((Date.now() - S.started) / 60000) });
-    store.set("history", h.slice(-200));
+    h.push({ day: S.day.custom ? null : S.day.n, prog: S.day.custom ? null : progId(), custom: S.day.custom, title: S.day.title, color: S.day.color,
+      moves: S.day.moves.length, rounds: S.rounds, date: new Date().toISOString(), minutes: Math.round((Date.now() - S.started) / 60000) });
+    store.set("history", h.slice(-500));
+    // "new moves every time" plans re-roll a workout once it's done
+    if (plan && !S.day.custom && plan.answers.variety === "fresh") {
+      const i = plan.days.findIndex((d) => d.n === S.day.n);
+      if (i >= 0) { PL.regenerateDay(plan, i); savePlan(); }
+    }
     beep(523, 0.15); setTimeout(() => beep(659, 0.15), 160); setTimeout(() => beep(784, 0.3), 320);
     endSession();
-    $("doneTitle").textContent = S.day.custom ? `${S.day.custom} done!` : `Day ${S.day.n} done!`;
+    $("doneTitle").textContent = S.day.custom ? `${S.day.custom} done!` : plan ? `${S.day.title} done!` : `Day ${S.day.n} done!`;
     const mins = Math.max(1, Math.round((Date.now() - S.started) / 60000));
     $("doneSub").textContent = `${S.rounds} round${S.rounds > 1 ? "s" : ""} of ${S.day.title} in about ${mins} minute${mins > 1 ? "s" : ""}.`;
     const st = streak();
-    $("doneNext").textContent = `${st > 1 ? `🔥 ${st}-day streak · ` : ""}Next time: Day ${suggestedDay()} — ${DAYS[suggestedDay() - 1].title}`;
+    const nx = program()[suggestedDay() - 1];
+    $("doneNext").textContent = `${st > 1 ? `🔥 ${st}-day streak · ` : ""}Next time: ${plan ? "Workout" : "Day"} ${nx.n} — ${nx.title}`;
     if (!S.day.custom) focus = suggestedDay() - 1;
+    renderFeel(null);
     show("done");
   }
 
+  const curMove = () => { const st = S.steps[S.i]; return st.type === "rest" ? st.next : st.key; };
+  function favCurrent() { const on = toggleFav(curMove()); flash(on ? "♥ SAVED" : "♥ REMOVED"); renderFavBtn(); }
+  function renderFavBtn() { if (!S) return; const on = favs().includes(curMove()); $("favIc").textContent = on ? "♥" : "♡"; $("favBtn").classList.toggle("on", on); }
+  function nopeCurrent() {
+    const k = curMove();
+    if (!confirm(`Never show "${EX[k].name}" again?`)) return;
+    notForMe(k);
+    flash("WON'T SHOW AGAIN");
+    const st = S.steps[S.i];
+    if (st.type === "work") next();
+  }
   function flash(text) {
     const f = document.createElement("div");
     f.className = "flash";
@@ -752,28 +1082,32 @@
         return;
       }
       const act = {
+        p: openWizard, P: openWizard,
         ArrowLeft: () => setFocus(focus - 1, -1), ArrowRight: () => setFocus(focus + 1, 1),
         ArrowUp: () => setRounds(settings.rounds + 1), ArrowDown: () => setRounds(settings.rounds - 1),
         Enter: () => activate(focus), " ": () => activate(focus),
         s: () => toggleSheet(true), S: () => toggleSheet(true),
       }[k];
       if (act) { e.preventDefault(); act(); }
-      else if (/^[1-5]$/.test(k)) { e.preventDefault(); setFocus(+k - 1, 1); }
+      else if (/^[1-9]$/.test(k) && +k <= CARDS.length) { e.preventDefault(); setFocus(+k - 1, 1); }
       return;
     }
     if (view === "menu") {
       const act = {
         ArrowUp: () => selectArea(menuArea - 1), ArrowDown: () => selectArea(menuArea + 1),
         ArrowLeft: () => selectArea(menuArea - 1), ArrowRight: () => selectArea(menuArea + 1),
-        r: reshuffle, R: reshuffle, Enter: startMenuSet, " ": startMenuSet,
+        r: reshuffle, R: reshuffle, Enter: startMenuSet, " ": startMenuSet, s: saveSet, S: saveSet, Delete: deleteSet,
         Escape: () => { show("home"); renderHome(); }, Backspace: () => { show("home"); renderHome(); },
       }[k];
       if (act) { e.preventDefault(); act(); }
       else if (/^[1-3]$/.test(k)) { e.preventDefault(); settings.rounds = +k; save("rounds"); sfx("tick"); renderMenu(); }
       return;
     }
+    if (view === "wizard") { wizardKey(e); return; }
     if (view === "done") {
       if (k === "Enter" || k === "Escape" || k === " ") { e.preventDefault(); show("home"); renderHome(); }
+      else if (/^[1-3]$/.test(k)) { e.preventDefault(); rateFeel(FEEL[+k - 1][0]); }
+      else if (k === "y" || k === "Y") { e.preventDefault(); acceptOffer(); }
       return;
     }
     if (k === " ") {
@@ -787,6 +1121,7 @@
     const map = {
       Enter: next, ArrowRight: next, ArrowLeft: back, Backspace: back,
       f: toggleFullscreen, F: toggleFullscreen, m: toggleSound, M: toggleSound, v: otherVideo, V: otherVideo, Escape: quit,
+      h: favCurrent, H: favCurrent, x: nopeCurrent, X: nopeCurrent,
     };
     if (map[k]) { e.preventDefault(); map[k](); }
   });
@@ -802,21 +1137,29 @@
   $("soundBtn").onclick = toggleSound;
   $("altBtn").onclick = otherVideo;
   $("fsBtn").onclick = toggleFullscreen;
+  $("favBtn").onclick = favCurrent;
+  $("nopeBtn").onclick = nopeCurrent;
+  $("wzBack").onclick = () => wzGo(-1);
   $("quitBtn").onclick = quit;
   $("homeBtn").onclick = () => { show("home"); renderHome(); };
   $("settingsBtn").onclick = () => toggleSheet(true);
+  $("planBtn").onclick = openWizard;
   $("menuBack").onclick = () => { show("home"); renderHome(); };
   $("shuffleBtn").onclick = reshuffle;
+  $("saveSetBtn").onclick = saveSet;
+  $("delSetBtn").onclick = deleteSet;
   $("setStart").onclick = startMenuSet;
   $("sheetClose").onclick = () => toggleSheet(false);
   $("sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") toggleSheet(false); });
 
   renderHome();
+  if (!plan && !history().length && !store.get("wizardSeen", false)) { store.set("wizardSeen", true); openWizard(); }
   setInterval(tick, 100);
 
   // exposed for quick testing in the console
   window.__workout = {
     get state() { return S; }, get player() { return player; }, get preview() { return preview; }, get focus() { return focus; },
     startSession, next, back, togglePause, setFocus, buildSet, poolFor, openMenu, get menuSet() { return menuSet; },
+    openWizard, get wz() { return wz; }, get plan() { return plan; }, get cards() { return CARDS; },
   };
 })();
