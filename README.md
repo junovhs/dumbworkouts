@@ -16,7 +16,19 @@ During a workout: Space pause/play · Space twice quickly (or Enter) next move �
 Start page: ◀ ▶ choose · Enter start · ▲ ▼ rounds · P my plan · C calendar · S settings. À la carte: ▲ ▼ area · A browse all moves · R shuffle · S save set · Del delete set. "Pick your own" starts empty so you can hand-pick every move.
 After a workout: 1–3 rate how it felt · Y accept the suggested change.
 
-Moves, cues and videos: `data.js` (program days, muscles) and `library.js` (extra moves). Plan generator, difficulty levels and skip tags: `plan.js`.
+Moves, cues and videos: `src/data.ts` (program days, muscles) and `src/library.ts` (extra moves). Plan generator, difficulty levels and skip tags: `src/plan.ts`.
+
+## TypeScript
+
+The source lives in `src/` and is compiled into the ignored `dist/` folder. Browsers receive compiled JavaScript in the same script order as before.
+
+```bash
+npm install
+npm run typecheck
+npm run build
+```
+
+`./start.sh` builds and serves `dist/`; `./deploy.sh` builds and deploys `dist/`.
 
 ## Deploy
 

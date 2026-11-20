@@ -13,7 +13,7 @@
   const LEVEL3 = ["jumpSquat", "bulgarianSplitSquat", "skaterSquat", "singleLegBoxSquat", "cossackSquat", "singleLegHipThrust",
     "sidePlankClam", "singleLegRdl", "walkingLunge"];
   // things people may want to leave out
-  const FLAGS = {
+  const FLAGS: Record<string, string[]> = {
     jump: ["jumpSquat"],
     kneel: ["birdDog", "kneelingSquat", "fireHydrant", "donkeyKick", "rainbowKick"],
     floor: ["gluteBridge", "floorPress", "floorFly", "deadBug", "singleLegBridge", "frogPump", "marchingBridge", "elevatedBridge",
@@ -29,7 +29,7 @@
   }
 
   // ---------- day templates: each slot is a list of acceptable movement patterns ----------
-  const T = {
+  const T: Record<string, PlanTemplate> = {
     fullA:  { title: "Full Body A", color: "#22c38e", slots: [["squat", "lunge"], ["push"], ["hinge", "bridge"], ["pull"], ["core"], ["side", "arms"]] },
     fullB:  { title: "Full Body B", color: "#3b82f6", slots: [["hinge"], ["pull"], ["lunge", "squat"], ["push"], ["side", "kickback", "core"], ["arms"]] },
     fullC:  { title: "Full Body C", color: "#8a5cf6", slots: [["bridge"], ["push"], ["lunge"], ["pull"], ["core"], ["kickback", "side"]] },
@@ -41,27 +41,27 @@
     lowerCore: { title: "Lower + Core", color: "#14a39a", slots: [["bridge"], ["core"], ["squat", "lunge"], ["core"], ["side", "kickback"], ["hinge"]] },
   };
   // Rotations per focus. With 4+ days, lower and upper alternate so the same muscles get a rest day between.
-  const ROTATIONS = {
+  const ROTATIONS: Record<PlanFocus, (n: number) => string[]> = {
     balanced: (n) => (n <= 3 ? ["fullA", "fullB", "fullC"] : ["butt", "upper", "legs", "upper2", "fullA", "lowerCore"]),
     booty:    (n) => (n <= 3 ? ["butt", "fullA", "butt2"] : ["butt", "upper", "butt2", "lowerCore", "butt", "upper2"]),
     lower:    (n) => (n <= 3 ? ["legs", "butt", "fullB"] : ["legs", "upper", "butt", "lowerCore", "butt2", "upper2"]),
     upper:    (n) => (n <= 3 ? ["upper", "fullA", "upper2"] : ["upper", "legs", "upper2", "fullB", "upper", "butt"]),
   };
 
-  const shuffle = (xs) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const shuffle = <T>(xs: T[]): T[] => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   // Hard rules: dumbbells owned and moves to skip. Level is soft: prefer at or below, allow one above if nothing else fits.
-  function allowed(k, a) {
+  function allowed(k: string, a: PlanAnswers): boolean {
     const e = EX[k];
     if (e.dumbbells > a.dumbbells) return false;
     if (e.flags.some((f) => (a.skip || []).includes(f))) return false;
     if ((a.dislikes || []).includes(k)) return false;
     return true;
   }
-  const maxLevel = (a) => ({ new: 1, back: 2, regular: 3 }[a.level] || 2);
+  const maxLevel = (a: PlanAnswers): number => ({ new: 1, back: 2, regular: 3 }[a.level] || 2);
 
   // Pick one move for a slot. `used` = already in this workout, `seen` = used elsewhere in the plan (soft avoid).
-  function pickSlot(patterns, a, used, seen, avoid = new Set()) {
+  function pickSlot(patterns: string[], a: PlanAnswers, used: Set<string>, seen: Map<string, number>, avoid = new Set<string>()): string | null {
     const ok = Object.keys(EX).filter((k) => !used.has(k) && patterns.includes(EX[k].pattern) && allowed(k, a));
     if (!ok.length) return null;
     const lvl = maxLevel(a);
@@ -71,8 +71,8 @@
     return ok.sort((x, y) => score(x) - score(y))[0];
   }
 
-  function buildWorkout(tplId, a, seen, avoid) {
-    const tpl = T[tplId], used = new Set(), moves = [];
+  function buildWorkout(tplId: string, a: PlanAnswers, seen: Map<string, number>, avoid?: Set<string>): string[] {
+    const tpl = T[tplId], used = new Set<string>(), moves: string[] = [];
     // slots in template order; the first ones are the most important
     const slots = Array.from({ length: a.moves }, (_, i) => tpl.slots[i % tpl.slots.length]);
     for (const pats of slots) {
@@ -88,33 +88,33 @@
     return moves;
   }
 
-  function rotationFor(a) {
+  function rotationFor(a: PlanAnswers): string[] {
     const n = Math.min(Math.max(a.perWeek || 3, 2), 6);
     return ROTATIONS[a.focus](n).slice(0, n);
   }
 
-  function generate(a) {
-    const seen = new Map();
+  function generate(a: PlanAnswers): WorkoutPlan {
+    const seen = new Map<string, number>();
     const tpls = rotationFor(a);
     const id = "p" + Date.now().toString(36);
     const days = tpls.map((t, i) => ({ n: i + 1, tpl: t, title: T[t].title, color: T[t].color, moves: buildWorkout(t, a, seen) }));
     // give repeated template titles a letter so the cards are tellable apart
-    const count = {};
+    const count: Record<string, number> = {};
     days.forEach((d) => (count[d.title] = (count[d.title] || 0) + 1));
-    const nth = {};
+    const nth: Record<string, number> = {};
     days.forEach((d) => { if (count[d.title] > 1) { nth[d.title] = (nth[d.title] || 0) + 1; d.title += " " + "ABCDEF"[nth[d.title] - 1]; } });
     return { id, answers: a, days, week: weekKey(new Date()), created: new Date().toISOString() };
   }
 
   // Fresh moves for one workout, avoiding what it had last time.
-  function regenerateDay(plan, i) {
+  function regenerateDay(plan: WorkoutPlan, i: number): void {
     const d = plan.days[i], seen = new Map();
     plan.days.forEach((x, j) => { if (j !== i) x.moves.forEach((k) => seen.set(k, 1)); });
     d.moves = buildWorkout(d.tpl, plan.answers, seen, new Set(d.moves));
   }
 
   // Swap two moves per workout for a same-pattern alternative.
-  function weeklySwap(plan) {
+  function weeklySwap(plan: WorkoutPlan): void {
     for (const d of plan.days) {
       for (const j of shuffle(d.moves.map((_, j) => j)).slice(0, 2)) {
         const used = new Set(d.moves);
@@ -124,8 +124,8 @@
     }
   }
 
-  function weekKey(date) {
-    const d = new Date(date); d.setHours(0, 0, 0, 0);
+  function weekKey(date: Date): string {
+    const d = new Date(date.getTime()); d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // back to Monday
     return d.toISOString().slice(0, 10);
   }

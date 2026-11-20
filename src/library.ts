@@ -4,8 +4,8 @@
 // areas: menu categories an exercise can be picked for.
 // Every move uses 2 or fewer dumbbells and no bench (a couch, chair or stair is fine).
 (() => {
-  const V = (id, shape = "tall") => ({ id, shape });
-  const NEW = {
+  const V = (id: string, shape: VideoShape = "tall"): ExerciseVideo => ({ id, shape });
+  const NEW: Record<string, Exercise> = {
     // ---------- bridges & thrusts ----------
     singleLegBridge: {
       name: "Single-Leg Glute Bridge", dumbbells: 0, reps: "10 reps each leg", pattern: "bridge",
@@ -239,7 +239,7 @@
   Object.assign(window.EXERCISES, NEW);
 
   // Tags for the existing program moves so the builder can use them too.
-  const TAGS = {
+  const TAGS: Record<string, string> = {
     gobletSquat: "squat", rdl: "hinge", reverseLunge: "lunge", gluteBridge: "bridge", birdDog: "kickback",
     suitcaseMarch: "core", deadBug: "core", russianTwist: "core",
     floorPress: "push", overheadPress: "push", floorFly: "push", lateralRaise: "push", tricepsExtension: "arms",
@@ -248,7 +248,7 @@
   for (const [k, p] of Object.entries(TAGS)) window.EXERCISES[k].pattern = p;
 
   // Areas follow from what an exercise works.
-  const AREA_OF = {
+  const AREA_OF: Record<string, string> = {
     glutes: "butt", sideGlutes: "butt", hamstrings: "legs", quads: "legs", adductors: "legs", calves: "legs",
     abs: "core", obliques: "core", lowerBack: "core", upperBack: "back", lats: "back", traps: "back", rearDelts: "back",
     shoulders: "shoulders", chest: "chest", biceps: "arms", triceps: "arms", forearms: "arms",

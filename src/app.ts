@@ -1,21 +1,21 @@
-/* Dumbbell Workouts — guided player. No build step, no dependencies besides the YouTube IFrame API. */
+/* Dumbbell Workouts — guided player. Compiled from TypeScript for browser delivery. */
 (() => {
-  const $ = (id) => document.getElementById(id);
+  const $ = (id: string): UIElement => document.getElementById(id) as UIElement;
   const EX = window.EXERCISES, DAYS = window.DAYS;
 
   // ---------- persisted settings ----------
   const store = {
-    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    get<T>(k: string, d: T): T { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+    set<T>(k: string, v: T): void { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   };
-  const settings = {
+  const settings: WorkoutSettings = {
     rounds: store.get("rounds", 1),
     rest: store.get("rest", 30),
     beeps: store.get("beeps", true),
     sound: store.get("sound", false),
     coach: store.get("coach", "any"),   // videos by: "any" | "f" (women) | "m" (men)
   };
-  const save = (k) => store.set(k, settings[k]);
+  const save = (k: keyof WorkoutSettings) => store.set(k, settings[k]);
 
   const READY_SECS = 10;      // "get ready" before the first move
   const ROUND_REST = 60;      // rest between rounds
@@ -24,7 +24,7 @@
   // ---------- video choice per exercise ----------
   function videoOptions(key) {
     const e = EX[key];
-    const custom = store.get("custom:" + key, null);
+    const custom = store.get<ExerciseVideo | null>("custom:" + key, null);
     const all = [e.video].concat(e.alts || []);
     // Keep videos matching the Videos setting; unknown presenters fit either. If a move has none, show them all.
     const fits = (v) => settings.coach === "any" || !window.PRESENTER[v.id] || window.PRESENTER[v.id] === settings.coach;
@@ -49,7 +49,7 @@
   }
   // YouTube answers a missing tall thumbnail with a tiny grey placeholder (HTTP 404 but a valid image),
   // so fall back on errors *and* on suspiciously small images.
-  function setImg(img, v) {
+  function setImg(img: HTMLImageElement, v: ExerciseVideo) {
     const fallback = () => { img.onerror = img.onload = null; img.src = `https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`; };
     img.onerror = fallback;
     img.onload = () => { if (img.naturalWidth < 200) fallback(); else img.onload = null; };
@@ -58,7 +58,7 @@
 
   // ---------- program: your wizard plan, or the classic Days 1-4 ----------
   const PL = window.PLANNER;
-  let plan = store.get("plan", null);
+  let plan = store.get<WorkoutPlan | null>("plan", null);
   const program = () => (plan ? plan.days : DAYS);
   const progId = () => (plan ? plan.id : "classic");
   const savePlan = () => store.set("plan", plan);
@@ -73,7 +73,7 @@
   }
 
   // ---------- history ----------
-  const history = () => store.get("history", []);
+  const history = (): WorkoutHistory[] => store.get<WorkoutHistory[]>("history", []);
   function suggestedDay() {
     const h = history(), id = progId(), len = program().length;
     const last = [...h].reverse().find((x) => typeof x.day === "number" && (x.prog || "classic") === id);
@@ -82,7 +82,7 @@
   const dayKey = (d) => new Date(d).toDateString();
   function fmtDate(iso) {
     const d = new Date(iso), today = new Date();
-    const days = Math.round((new Date(today.toDateString()) - new Date(d.toDateString())) / 864e5);
+    const days = Math.round((new Date(today.toDateString()).getTime() - new Date(d.toDateString()).getTime()) / 864e5);
     if (days === 0) return "today";
     if (days === 1) return "yesterday";
     return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
@@ -117,7 +117,7 @@
       `</svg>`;
     return `<div class="bm-figs"><div>${fig("front", 200)}<span>Front</span></div><div>${fig("back", 220)}<span>Back</span></div></div>`;
   }
-  const cardCache = new Map();
+  const cardCache = new Map<Exercise, string>();
   function muscleCard(e) {
     if (!cardCache.has(e)) {
       cardCache.set(e, `${bodyMap(e.primary, e.secondary)}
@@ -143,13 +143,13 @@
     return lo === hi ? dumbbellText(lo) : `${lo}–${hi} dumbbells`;
   }
 
-  const MENU_CARD = { menu: true, title: "À la carte", color: "#f5b82e",
+  const MENU_CARD: WorkoutDay = { menu: true, title: "À la carte", color: "#f5b82e",
     moves: ["couchHipThrust", "sumoSquat", "curtsyLunge", "fireHydrant", "singleLegRdl"] };
-  const PLAN_CARD = { plan: true, title: "My plan", color: "#22c38e",
+  const PLAN_CARD: WorkoutDay = { plan: true, title: "My plan", color: "#22c38e",
     moves: ["gobletSquat", "floorPress", "couchHipThrust", "bentOverRow", "deadBug"] };
-  let CARDS = [];
+  let CARDS: WorkoutDay[] = [];
   let focus = 0;
-  let panels = [];
+  let panels: HTMLElement[] = [];
   function activate(i) { const c = CARDS[i]; c.menu ? openMenu() : c.plan ? openWizard() : startSession(c); }
   const FOCUS_LABEL = { balanced: "Balanced", booty: "Booty focus", lower: "Legs & butt", upper: "Upper body" };
   const LEVEL_LABEL = { new: "Brand new", back: "Getting back into it", regular: "Regular" };
@@ -212,12 +212,12 @@
           <ol class="p-moves">${d.moves.map((k, j) => `<li data-j="${j}"><span>${EX[k].name}</span><em>${EX[k].reps}</em></li>`).join("")}</ol>
           <button class="p-go">START <kbd>Enter</kbd></button>
         </div>`;
-      setImg(p.querySelector(".p-photo"), previewVideo(d.moves[0]));
+      setImg(p.querySelector<UIElement>(".p-photo"), previewVideo(d.moves[0]));
       p.addEventListener("click", (e) => {
         if (i !== focus) { setFocus(i); return; }
-        if (e.target.closest(".p-go") || e.target.closest(".p-art") || e.target.closest(".p-shade")) activate(i);
+        if ((e.target as Element).closest(".p-go") || (e.target as Element).closest(".p-art") || (e.target as Element).closest(".p-shade")) activate(i);
       });
-      p.querySelector(".p-go").addEventListener("click", (e) => { e.stopPropagation(); if (i === focus) activate(i); });
+      p.querySelector<UIElement>(".p-go").addEventListener("click", (e) => { e.stopPropagation(); if (i === focus) activate(i); });
       wrap.appendChild(p);
       return p;
     });
@@ -230,20 +230,20 @@
       // circular: one panel on the left, the rest on the right (for 4 days: -1, 0, 1, 2)
       const d = (((i - focus) % n) + n + 1) % n - 1, a = Math.abs(d), s = Math.sign(d);
       const prev = p.dataset.d === undefined ? d : +p.dataset.d;
-      p.dataset.d = d;
+      p.dataset.d = String(d);
       p.classList.toggle("focused", d === 0);
       // a panel wrapping from one end to the other jumps instead of sweeping through the front
       p.classList.toggle("instant", !!instant || Math.abs(prev - d) > 1);
-      p.style.setProperty("--d", d);
-      p.style.setProperty("--a", a);
-      p.style.setProperty("--s", s);
-      p.style.zIndex = 10 - a;
+      p.style.setProperty("--d", String(d));
+      p.style.setProperty("--a", String(a));
+      p.style.setProperty("--s", String(s));
+      p.style.zIndex = String(10 - a);
     });
     document.documentElement.style.setProperty("--accent", CARDS[focus].color);
     renderRounds();
   }
 
-  function setFocus(i) {
+  function setFocus(i: number, _direction?: number) {
     i = ((i % CARDS.length) + CARDS.length) % CARDS.length;
     if (i === focus) return;
     focus = i;
@@ -257,13 +257,13 @@
     el.innerHTML = "";
     for (let r = 1; r <= 3; r++) {
       const b = document.createElement("button");
-      b.textContent = r;
+      b.textContent = String(r);
       b.className = r === settings.rounds ? "on" : "";
       b.onclick = () => setRounds(r);
       el.appendChild(b);
     }
     $("roundsTime").textContent = minutesFor(settings.rounds);
-    panels.forEach((p) => { const m = p.querySelector(".p-mins"); if (m) m.textContent = minutesFor(settings.rounds, +m.dataset.n); });
+    panels.forEach((p) => { const m = p.querySelector<UIElement>(".p-mins"); if (m) m.textContent = minutesFor(settings.rounds, +m.dataset.n); });
   }
   function setRounds(r) {
     r = Math.max(1, Math.min(3, r));
@@ -355,9 +355,9 @@
     { id: "full", name: "Full body", color: "#22c38e", blurb: "Legs, glutes, push, pull and core" },
     { id: "favs", name: "♥ Favorites", color: "#ff5c8a", blurb: "Built from moves you've hearted" },
   ];
-  const savedSets = () => store.get("sets", []);
+  const savedSets = (): SavedSet[] => store.get<SavedSet[]>("sets", []);
   // menu list = body areas, then your saved sets
-  const menuItems = () => [...AREAS.map((a) => ({ kind: "area", ...a })), ...savedSets().map((x) => ({ kind: "set", ...x }))];
+  const menuItems = (): MenuItem[] => [...AREAS.map((a) => ({ kind: "area" as const, ...a })), ...savedSets().map((x) => ({ kind: "set" as const, ...x }))];
   const curItem = () => menuItems()[menuArea] || menuItems()[0];
   const PATTERN_LABEL = { squat: "Squat", hinge: "Hinge", lunge: "Single-leg", bridge: "Bridge", side: "Side glutes", kickback: "Glute isolation", core: "Core", push: "Push", pull: "Pull", arms: "Arms" };
   const UPPER = ["chest", "shoulders", "back", "arms"];
@@ -371,11 +371,11 @@
       return a.includes(area);
     });
   }
-  const shuffle = (xs) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const shuffle = <T>(xs: T[]): T[] => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   // pick one from candidates, preferring ones not in `avoid`
-  const pickFrom = (cands, avoid) => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
+  const pickFrom = (cands: string[], avoid: Set<string>): string | undefined => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
 
-  function buildSet(area, avoid = new Set(), size = 5) {
+  function buildSet(area: string, avoid = new Set<string>(), size = 5) {
     const pool = poolFor(area), used = new Set();
     const take = (filter) => {
       const k = pickFrom(pool.filter((x) => !used.has(x) && filter(EX[x])), avoid);
@@ -411,14 +411,14 @@
     return picks.filter(Boolean);
   }
 
-  let menuArea = 1, menuSet = [], menuDirty = false;
+  let menuArea = 1, menuSet: string[] = [], menuDirty = false;
   function openMenu() {
     stopPreview();
     show("menu");
     sfx("start");
     selectArea(menuArea, true);
   }
-  function selectArea(i, force) {
+  function selectArea(i: number, force = false) {
     const n = menuItems().length;
     i = ((i % n) + n) % n;
     if (i === menuArea && !force) return;
@@ -475,7 +475,7 @@
       <button class="area${a.kind === "set" ? " saved" : ""}${i === menuArea ? " on" : ""}" data-i="${i}" style="--c:${a.color}">
         <b>${a.name}</b><span>${a.kind === "set" ? `${a.moves.length} moves · saved` : a.id === "favs" && !fv.length ? "Tap ♡ on any move to add it" : `${poolFor(a.id).length} moves · ${a.blurb}`}</span>
       </button>`).join("");
-    $("areas").querySelectorAll(".area").forEach((b) => (b.onclick = () => selectArea(+b.dataset.i)));
+    $("areas").querySelectorAll<UIElement>(".area").forEach((b) => (b.onclick = () => selectArea(+b.dataset.i)));
     $("setTitle").textContent = area.kind === "set" ? area.name : `${area.name.replace("♥ ", "")} workout`;
     $("setSub").textContent = menuSet.length ? `${menuSet.length} move${menuSet.length > 1 ? "s" : ""} · ${settings.rounds} round${settings.rounds > 1 ? "s" : ""} · ${minutesFor(settings.rounds, menuSet.length)}` : "";
     $("setList").innerHTML = menuSet.map((k, j) => {
@@ -490,15 +490,15 @@
         <button class="sdel" data-j="${j}" title="Remove">✕</button>
       </li>`;
     }).join("");
-    $("setList").querySelectorAll(".sswap").forEach((b) => (b.onclick = () => swapOne(+b.dataset.j)));
-    $("setList").querySelectorAll(".sdel").forEach((b) => (b.onclick = () => { menuSet.splice(+b.dataset.j, 1); menuDirty = true; sfx("tick"); renderMenu(); }));
-    $("setList").querySelectorAll(".sfav").forEach((b) => (b.onclick = () => { toggleFav(b.dataset.k); sfx("tick"); renderMenu(); }));
+    $("setList").querySelectorAll<UIElement>(".sswap").forEach((b) => (b.onclick = () => swapOne(+b.dataset.j)));
+    $("setList").querySelectorAll<UIElement>(".sdel").forEach((b) => (b.onclick = () => { menuSet.splice(+b.dataset.j, 1); menuDirty = true; sfx("tick"); renderMenu(); }));
+    $("setList").querySelectorAll<UIElement>(".sfav").forEach((b) => (b.onclick = () => { toggleFav(b.dataset.k); sfx("tick"); renderMenu(); }));
     if (!menuSet.length) $("setList").innerHTML = `<li class="sempty">${area.id === "favs" ? "No favorites yet. Pick any body area and tap ♡ on the moves you like, or press H during a workout." : `Nothing picked yet. <button class="hud-btn" id="emptyAdd">＋ Browse all ${poolFor("all").length} moves <kbd>A</kbd></button>`}</li>`;
     if ($("emptyAdd")) $("emptyAdd").onclick = openPicker;
     $("saveSetBtn").innerHTML = area.kind === "set" ? `✓ Save changes <kbd>S</kbd>` : `♥ Save set <kbd>S</kbd>`;
     $("saveSetBtn").disabled = area.kind === "set" ? !menuDirty : !menuSet.length;
     $("delSetBtn").classList.toggle("hidden", area.kind !== "set");
-    $("setList").querySelectorAll(".sthumb").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
+    $("setList").querySelectorAll<UIElement>(".sthumb").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
     const pri = new Set(menuSet.flatMap((k) => EX[k].primary));
     const sec = new Set(menuSet.flatMap((k) => EX[k].secondary).filter((m) => !pri.has(m)));
     $("setMap").innerHTML = bodyMap([...pri], [...sec]);
@@ -526,7 +526,7 @@
   function renderPicker() {
     const filters = [["all", "All"], ...AREAS.filter((a) => !["all", "full"].includes(a.id)).map((a) => [a.id, a.name])];
     $("pickFilters").innerHTML = filters.map(([id, name]) => `<button class="${id === pickFilter ? "on" : ""}" data-f="${id}">${name}</button>`).join("");
-    $("pickFilters").querySelectorAll("button").forEach((b) => (b.onclick = () => { pickFilter = b.dataset.f; renderPicker(); }));
+    $("pickFilters").querySelectorAll<UIElement>("button").forEach((b) => (b.onclick = () => { pickFilter = b.dataset.f; renderPicker(); }));
     const q = $("pickSearch").value.trim().toLowerCase();
     const keys = poolFor(pickFilter).filter((k) => {
       if (!q) return true;
@@ -534,7 +534,7 @@
       return [e.name, PATTERN_LABEL[e.pattern] || "", ...e.primary.map((m) => MUS[m].name), ...e.secondary.map((m) => MUS[m].name)].join(" ").toLowerCase().includes(q);
     });
     const fv = favs();
-    const groups = PICK_ORDER.map((p) => [p, keys.filter((k) => EX[k].pattern === p)]).filter(([, ks]) => ks.length);
+    const groups = PICK_ORDER.map((p): [string, string[]] => [p, keys.filter((k) => EX[k].pattern === p)]).filter(([, ks]) => ks.length);
     $("pickCount").textContent = `${menuSet.length} in your workout`;
     $("pickGrid").innerHTML = groups.map(([p, ks]) => `<h3 class="pick-h">${PATTERN_LABEL[p]} <span>${ks.length}</span></h3>
       <div class="pick-row">${ks.map((k) => {
@@ -548,8 +548,8 @@
           <em>${n ? "✓ Added" : "＋ Add"}</em>
         </button>`;
       }).join("")}</div>`).join("") || `<div class="sempty">No moves match "${q.replace(/[<>&]/g, "")}".</div>`;
-    $("pickGrid").querySelectorAll(".pcard").forEach((b) => (b.onclick = () => togglePick(b.dataset.k)));
-    $("pickGrid").querySelectorAll("img").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
+    $("pickGrid").querySelectorAll<UIElement>(".pcard").forEach((b) => (b.onclick = () => togglePick(b.dataset.k)));
+    $("pickGrid").querySelectorAll<UIElement>("img").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
   }
   $("pickSearch").addEventListener("input", renderPicker);
   $("pickSearch").addEventListener("keydown", (e) => { if (e.key === "Escape" || e.key === "Enter") { e.preventDefault(); closePicker(); } });
@@ -565,8 +565,8 @@
 
 
   // ---------- preferences learned from use ----------
-  const favs = () => store.get("favs", []);
-  const nope = () => store.get("nope", []);
+  const favs = (): string[] => store.get<string[]>("favs", []);
+  const nope = (): string[] => store.get<string[]>("nope", []);
   function toggleFav(k) {
     const f = favs(), i = f.indexOf(k);
     i >= 0 ? f.splice(i, 1) : f.push(k);
@@ -598,7 +598,7 @@
   }
 
   // ---------- SETUP WIZARD: four one-tap questions ----------
-  const QUESTIONS = [
+  const QUESTIONS: Array<{ id: string; title: string; options: Array<[string | number, string, string]> }> = [
     { id: "level", title: "How much have you lifted before?", options: [
       ["new", "Brand new", "Simple moves while you learn the form"],
       ["back", "Getting back into it", "Some experience, a bit rusty"],
@@ -615,7 +615,7 @@
       [2, "A pair", "Two dumbbells (any weight)"], [1, "Just one", "We'll stick to one-dumbbell moves"], [0, "None yet", "Body-weight moves only"]] },
   ];
   const SKIPS = [["jump", "Jumping"], ["kneel", "Kneeling / all fours"], ["floor", "Lying on the floor"], ["lunge", "Lunges"], ["overhead", "Weights overhead"], ["balance", "One-leg balance"]];
-  let wz = null; // { step, cur, answers, draft }
+  let wz: WizardState | null = null;
   function openWizard() {
     stopPreview();
     const prev = plan ? plan.answers : store.get("planAnswers", null);
@@ -683,7 +683,7 @@
             </button>`).join("")}
           </div>
         </div>`;
-      $("wzBody").querySelectorAll(".wz-opt").forEach((b) => (b.onclick = () => wzPick(+b.dataset.i)));
+      $("wzBody").querySelectorAll<UIElement>(".wz-opt").forEach((b) => (b.onclick = () => wzPick(+b.dataset.i)));
       $("wzKeys").innerHTML = `<span><kbd>◀</kbd><kbd>▶</kbd> Choose</span><span><kbd>Enter</kbd> Next</span><span><kbd>1</kbd>–<kbd>${q.options.length}</kbd> Pick</span><span><kbd>Backspace</kbd> Back</span>`;
       return;
     }
@@ -710,7 +710,7 @@
         </div>
         <p class="wz-learn">After each workout you'll rate how it felt, and ♥ or skip moves. The plan adjusts as you go.</p>
       </div>`;
-    $("wzBody").querySelectorAll(".chip").forEach((b) => (b.onclick = () => {
+    $("wzBody").querySelectorAll<UIElement>(".chip").forEach((b) => (b.onclick = () => {
       const f = b.dataset.f, i = a.skip.indexOf(f);
       i >= 0 ? a.skip.splice(i, 1) : a.skip.push(f);
       sfx("tick"); wzBuild(); renderWizard();
@@ -743,7 +743,7 @@
   let feelOffer = null;
   function renderFeel(picked) {
     $("feelBtns").innerHTML = FEEL.map(([v, label], i) => `<button class="feel-btn${picked === v ? " on" : ""}" data-v="${v}"><kbd>${i + 1}</kbd> ${label}</button>`).join("");
-    $("feelBtns").querySelectorAll(".feel-btn").forEach((b) => (b.onclick = () => rateFeel(b.dataset.v)));
+    $("feelBtns").querySelectorAll<UIElement>(".feel-btn").forEach((b) => (b.onclick = () => rateFeel(b.dataset.v)));
     feelOffer = picked ? offerFor(picked) : null;
     $("feelTip").innerHTML = feelOffer ? `${feelOffer.text} <button class="hud-btn" id="feelYes">${feelOffer.label} <kbd>Y</kbd></button>` : picked === "right" ? "Nice. We'll keep it right here." : "";
     if (feelOffer) $("feelYes").onclick = acceptOffer;
@@ -833,7 +833,7 @@
       </button>`;
     }
     $("calGrid").innerHTML = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => `<div class="cwd">${w}</div>`).join("") + cells;
-    $("calGrid").querySelectorAll(".cday").forEach((b) => (b.onclick = () => { calSel = b.dataset.k; sfx("tick"); renderCalendar(); }));
+    $("calGrid").querySelectorAll<UIElement>(".cday").forEach((b) => (b.onclick = () => { calSel = b.dataset.k; sfx("tick"); renderCalendar(); }));
 
     // stats
     const wk = monday(new Date());
@@ -867,13 +867,13 @@
   }
 
   // ---------- start-screen preview player (focused panel only) ----------
-  let preview = null, previewTimer = null, previewIdx = 0, previewGen = 0;
+  let preview: YT.Player | null = null, previewTimer: number | null = null, previewIdx = 0, previewGen = 0;
   function stopPreview() {
     clearTimeout(previewTimer);
     previewGen++;
     if (preview) { try { preview.destroy(); } catch {} preview = null; }
-    document.querySelectorAll(".p-vid").forEach((v) => { v.innerHTML = ""; v.classList.remove("live"); });
-    document.querySelectorAll(".p-moves li").forEach((li) => li.classList.remove("on"));
+    document.querySelectorAll<UIElement>(".p-vid").forEach((v) => { v.innerHTML = ""; v.classList.remove("live"); });
+    document.querySelectorAll<UIElement>(".p-moves li").forEach((li) => li.classList.remove("on"));
   }
   function startPreview() {
     stopPreview();
@@ -886,7 +886,7 @@
     ytReady.then(() => {
       if (gen !== previewGen) return;
       const holder = document.createElement("div");
-      p.querySelector(".p-vid").appendChild(holder);
+      p.querySelector<UIElement>(".p-vid").appendChild(holder);
       preview = new YT.Player(holder, {
         host: "https://www.youtube-nocookie.com",
         videoId: previewVideo(day.moves[0]).id,
@@ -908,24 +908,24 @@
       });
     });
   }
-  function cyclePreview(gen, p, day) {
+  function cyclePreview(gen: number, p: HTMLElement, day: WorkoutDay) {
     if (gen !== previewGen || !preview) return;
     previewIdx = (previewIdx + 1) % day.moves.length;
     const v = previewVideo(day.moves[previewIdx]);
-    const vid = p.querySelector(".p-vid");
+    const vid = p.querySelector<UIElement>(".p-vid");
     vid.classList.remove("live");
-    setImg(p.querySelector(".p-photo"), v);
+    setImg(p.querySelector(".p-photo") as HTMLImageElement, v);
     markPreviewMove(p, previewIdx);
     setTimeout(() => { if (gen === previewGen && preview) preview.loadVideoById(v.id); }, 350);
   }
-  function markPreviewMove(p, j) {
-    p.querySelectorAll(".p-moves li").forEach((li) => li.classList.toggle("on", +li.dataset.j === j));
+  function markPreviewMove(p: HTMLElement, j: number) {
+    p.querySelectorAll<HTMLElement>(".p-moves li").forEach((li) => li.classList.toggle("on", +li.dataset.j === j));
   }
 
   // ---------- SESSION ----------
-  let S = null; // session state
+  let S: WorkoutSession | null = null;
   function buildSteps(day, rounds) {
-    const moves = day.moves, steps = [];
+    const moves = day.moves, steps: WorkoutStep[] = [];
     steps.push({ type: "rest", label: "Get ready!", secs: READY_SECS, next: moves[0], round: 1, idx: 0 });
     for (let r = 1; r <= rounds; r++) {
       moves.forEach((k, i) => {
@@ -976,7 +976,7 @@
       if (st.type !== "work") return;
       const dot = document.createElement("span");
       dot.className = "dot";
-      dot.dataset.j = j;
+      dot.dataset.j = String(j);
       dot.title = `Round ${st.round}: ${EX[st.key].name}`;
       p.appendChild(dot);
     });
@@ -1000,7 +1000,7 @@
     $("tip").classList.toggle("hidden", !e.tip);
     $("tip").textContent = e.tip ? "★ " + e.tip : "";
     $("nextTxt").textContent = isRest ? "Skip rest" : S.i === S.steps.length - 1 ? "Finish!" : "Done – Next";
-    document.querySelectorAll("#progress .dot").forEach((d) => {
+    document.querySelectorAll<UIElement>("#progress .dot").forEach((d) => {
       const j = +d.dataset.j;
       d.className = "dot" + (j < S.i ? " done" : j === S.i ? " now" : "");
     });
@@ -1139,9 +1139,9 @@
   }
 
   // ---------- YouTube ----------
-  let ytResolve;
-  const ytReady = new Promise((r) => (ytResolve = r));
-  let player = null, playerReady = false, pendingVideo = null;
+  let ytResolve!: () => void;
+  const ytReady = new Promise<void>((r) => (ytResolve = r));
+  let player: YT.Player | null = null, playerReady = false, pendingVideo: ExerciseVideo | null = null;
   window.onYouTubeIframeAPIReady = () => {
     ytResolve();
     player = new YT.Player("player", {
@@ -1194,14 +1194,14 @@
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen().catch(() => {});
   }
-  let wakeLock = null;
+  let wakeLock: WakeLockSentinel | null = null;
   async function requestWakeLock() { try { wakeLock = await navigator.wakeLock?.request("screen"); } catch {} }
   function releaseWakeLock() { try { wakeLock?.release(); } catch {} wakeLock = null; }
   document.addEventListener("visibilitychange", () => { if (view === "session" && document.visibilityState === "visible") requestWakeLock(); });
 
-  let actx = null;
+  let actx: AudioContext | null = null;
   function unlockAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch {} }
-  function beep(freq, dur, vol = 0.35, type = "sine", toFreq) {
+  function beep(freq: number, dur: number, vol = 0.35, type: OscillatorType = "sine", toFreq?: number) {
     if (!settings.beeps || !actx) return;
     const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
     o.frequency.setValueAtTime(freq, t); o.type = type;
@@ -1222,7 +1222,7 @@
 
   // ---------- input ----------
   document.addEventListener("keydown", (e) => {
-    if (e.target.tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
+    if ((e.target as HTMLElement).tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
     if (view === "home") {
       if (sheetOpen()) {
@@ -1288,7 +1288,7 @@
   const DOUBLE_TAP_MS = 400;
   let lastSpace = 0;
   // Keep keyboard focus out of buttons so Space/Enter always go to our handler.
-  document.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) b.blur(); });
+  document.addEventListener("click", (e) => { const b = (e.target as HTMLElement).closest("button"); if (b) b.blur(); });
 
   $("shield").onclick = togglePause;
   $("pauseBtn").onclick = togglePause;
@@ -1315,7 +1315,7 @@
   $("delSetBtn").onclick = deleteSet;
   $("setStart").onclick = startMenuSet;
   $("sheetClose").onclick = () => toggleSheet(false);
-  $("sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") toggleSheet(false); });
+  $("sheet").addEventListener("click", (e) => { if ((e.target as HTMLElement).id === "sheet") toggleSheet(false); });
 
   renderHome();
   if (!plan && !history().length && !store.get("wizardSeen", false)) { store.set("wizardSeen", true); openWizard(); }
