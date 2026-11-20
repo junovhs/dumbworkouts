@@ -27,7 +27,7 @@ window.EXERCISES = {
     name: "Suitcase March", dumbbells: 1, reps: "30 sec each side", timed: { seconds: 30, sides: ["Dumbbell in LEFT hand", "Dumbbell in RIGHT hand"] },
     primary: ["obliques", "sideGlutes"], secondary: ["abs", "forearms", "traps"],
     cues: ["Hold 1 dumbbell at your side", "March slowly", "Stand tall, shoulders level"],
-    video: { id: "TLjp2UAl1JQ", shape: "wide" }, alts: [{ id: "LhX0EnTvPE4", shape: "wide" }, { id: "MJy2__aHv2Y", shape: "tall" }],
+    video: { id: "TLjp2UAl1JQ", shape: "wide" }, alts: [{ id: "LhX0EnTvPE4", shape: "wide" }, { id: "MJy2__aHv2Y", shape: "tall" }, { id: "DeMrcRuwsQg", shape: "tall" }, { id: "PaxSuVXsQls", shape: "wide" }],
   },
   floorPress: {
     name: "Dumbbell Floor Press", dumbbells: 2, reps: "10–12 reps", primary: ["chest", "triceps"], secondary: ["shoulders"],
@@ -43,12 +43,12 @@ window.EXERCISES = {
   lateralRaise: {
     name: "Lateral Raise", dumbbells: 2, reps: "10–12 reps", primary: ["shoulders"], secondary: ["traps"],
     cues: ["Soft elbows", "Raise to shoulder height", "Lower slowly"],
-    video: { id: "xyK8UiC-BUw", shape: "tall" }, alts: [{ id: "Kl3LEzQ5Zqs", shape: "tall" }, { id: "XPPfnSEATJA", shape: "wide" }],
+    video: { id: "xyK8UiC-BUw", shape: "tall" }, alts: [{ id: "Kl3LEzQ5Zqs", shape: "tall" }, { id: "XPPfnSEATJA", shape: "wide" }, { id: "eaM8JxEn6Ig", shape: "tall" }, { id: "SHvXdGxTLm0", shape: "tall" }],
   },
   tricepsExtension: {
     name: "Overhead Triceps Extension", dumbbells: 1, reps: "10–12 reps", primary: ["triceps"], secondary: ["abs"],
     cues: ["Hold 1 dumbbell with both hands", "Elbows point up", "Straighten arms smoothly"],
-    video: { id: "AYqg9S5FrUU", shape: "tall" }, alts: [{ id: "IJ6J7EKprsc", shape: "wide" }, { id: "-Vyt2QdsR7E", shape: "wide" }],
+    video: { id: "AYqg9S5FrUU", shape: "tall" }, alts: [{ id: "IJ6J7EKprsc", shape: "wide" }, { id: "-Vyt2QdsR7E", shape: "wide" }, { id: "QKfRhY8qvhg", shape: "tall" }],
   },
   floorFly: {
     name: "Floor Chest Fly", dumbbells: 2, reps: "8–10 reps", primary: ["chest"], secondary: ["shoulders", "biceps"],
@@ -91,7 +91,7 @@ window.EXERCISES = {
     name: "Bird Dog", dumbbells: 0, reps: "8 reps each side", primary: ["glutes", "lowerBack"], secondary: ["abs", "sideGlutes", "shoulders"],
     cues: ["Hands under shoulders", "Reach long through arm and leg", "Keep hips level"],
     tip: "Move slowly and stay steady",
-    video: { id: "_1j_HWknGLg", shape: "tall" }, alts: [{ id: "QVRtIHp9h-M", shape: "wide" }, { id: "xEDnlOxeJH4", shape: "wide" }],
+    video: { id: "_1j_HWknGLg", shape: "tall" }, alts: [{ id: "QVRtIHp9h-M", shape: "wide" }, { id: "xEDnlOxeJH4", shape: "wide" }, { id: "X0FpQEjEA40", shape: "tall" }, { id: "knsOPG88idk", shape: "tall" }],
   },
   russianTwist: {
     name: "Russian Twist", dumbbells: 1, reps: "16–20 twists", primary: ["obliques"], secondary: ["abs"],
@@ -141,3 +141,39 @@ window.RULES = [
   "Keep at least 1 rest day between strength workouts",
   "Sharp pain or dizziness = stop",
 ];
+
+// Who demonstrates each video (for the Videos: Women / Men setting). Unlisted ids (animations,
+// unclear clips) count as a match for either choice.
+window.PRESENTER = {};
+[
+  "-Vyt2QdsR7E", "0CWxnhSyPtU", "36vnWAkL7ZQ", "3vGZyXRZ298", "6gvmcqr226U", "6r0N8oaU4ko", "8fZxWTiIJWo",
+  "9AXSxa-iB0w", "ADXZdHAiFJg", "AYqg9S5FrUU", "D9Z8GpyNGi0", "DA4FVJH2PnU", "DqLL45uk2Tk", "E6VLOEz7tWE",
+  "EK8OS6DZEwQ", "GFosoEmNAQA", "GhtIRFqClwE", "IJ6J7EKprsc", "IOOLhrkN_NI", "J9MpoAQCjos", "K0oHBV6w3T8",
+  "Kl3LEzQ5Zqs", "MJvazUpmdZU", "MKfv0WiTeEQ", "NqL21LLv5ak", "NxJz1BTiSnQ", "O7IT2BbYC6k", "OJ2wlRMVn5g",
+  "PzDbmqL6qo8", "R_fJ6H3FlVw", "TYrurDZTj9I", "Tc1TsAdoDRo", "UBmpZ7l5Nlk", "VMbDQ8PZazY", "VqoFbCmRyyk",
+  "WwWg5VksY18", "XPPfnSEATJA", "XQyUlYxTGuM", "YBxfr3La96E", "__xmBVfQMLc", "_m0z8EgqlVY", "_r7FCi7e-Fw",
+  "a1xnrwNkMkA", "a9lx_T0f7yc", "abYz-R6YNXU", "apcNuGp97sY", "bnCGbY7hu5I", "cUJc9ZaSqbU", "hlth_Of9LEc",
+  "hu3jRvTc_po", "iDbSKR6_jJQ", "lRYBbchqxtI", "ldABahTUB0U", "o4GKiEoYClI", "qB_bC7-CQjI", "qW2ps30p9m4",
+  "r320kgGBBWs", "tDgQx0W1JP0", "vm0zV_WQerE", "wO0l5jW2NtQ", "wklI-e2WpFQ", "xg0qzjFcono", "xyK8UiC-BUw",
+  "zteT9sVYOSM",
+  "DeMrcRuwsQg", "PaxSuVXsQls", "X0FpQEjEA40", "knsOPG88idk", "-sTDH8Chc1E", "msfdrPWJ-9o", "DvPSiJ6FPxU", "i3FT7g-UpNg", "De9OUZz5W_I", "O3pmXUqgsU4", "H02OuhfYtoM", "ElCIiU1FWxg", "rngJ3yYCX6g", "oVSlEf9qj1A", "tfx_W3WJKks", "aJUtDmOtZC4", "JsDRMr1T7Is", "iqP1OF0atKM"
+].forEach((id) => (window.PRESENTER[id] = "m"));
+[
+  "-IlIs1LhVDY", "-mJAo1_zE7k", "-rQv_Lbn3Gk", "0qzSDAfBzSw", "0z0NEUtwxF0", "13d3DCI_-BI", "1EqGnNuUalk",
+  "2ea3_b9rFdM", "4LYL84PV3AY", "5Jv-CYmT25E", "5WxMW-Fu5KU", "5b4TonBLVgM", "62IAwMoHawI", "6B5pXXAd9OU",
+  "7-80HiXX1K8", "73udYXFW7dg", "8ANwlFziwtk", "91EUeiZsSNc", "9prcXIdXev0", "CP8FnbRod6Q", "CX0OPjpkUBE",
+  "CkFzgR55gho", "CwlagttgD5Y", "DYw8QTutJ60", "E36nkfxG15U", "EXzrRuekzLU", "EYr4pewiBQo", "F1utkqNL9hA",
+  "FShbaqrGGu4", "Fck2BoZ_dXo", "GbSC02oU3To", "I1eq_u2snYI", "IACvsUqSqcA", "IRkRgk2Gc1E", "ITyJfMetA8s",
+  "IbWwSHwGEJ8", "IrJBHdyZXFo", "K0lda9eQfNo", "KDmxshCrqA4", "KoXAfvFB-YY", "KsYwYl13IDc", "Kthqc3yyyK4",
+  "L3Nlm_x3c6Q", "L_aTduY-mSg", "LhX0EnTvPE4", "LryFP0rlPG0", "M3udJ4o7ndU", "MJy2__aHv2Y", "MkyIs2uLjDo",
+  "NCzebKJUN8c", "O8k_pNbSOVM", "ORO64L7Iz4w", "OxWZ-G-RdCM", "PSMW7iSi2BU", "Q2k3kYbtOcI", "QVRtIHp9h-M",
+  "QuAQZ5faoAE", "SJ1Xuz9D-ZQ", "SQWgbL0YGas", "Sxqw-AoClcI", "T0Y3OBF1bNI", "TLjp2UAl1JQ", "UBTnZaJS398",
+  "UcakkCPy-rk", "V1NKta2znwU", "VA9z64mNSCw", "Wcmg-3iHwjQ", "XIfYC7xsInU", "XcPDvQlwPKg", "XkiiUjR_zJ4",
+  "Y0G0DqWsSuM", "Y3Mj5CsLcOQ", "Y40n8JJ_Fu0", "YJdQCJGsOGk", "YxwXmbxly6s", "ZOWNWH8szDI", "ZmoRvRrgBj0",
+  "_1j_HWknGLg", "_KwWsz38j6M", "aVikygf5YKA", "bgC53-J-6gA", "d3zns5GlncI", "du-5zccAfdM", "f-RQq1fCX34",
+  "fUWA_KAXKyQ", "gFyIjunfbbg", "guAKp7vHzqQ", "gvtJGZvZO8E", "h5TmdMMtIT4", "iOrJXNUH3to", "kHgMJOpDGRQ",
+  "kK4O5YZYSG8", "mKL3k6buTe0", "nll7MQwLNwo", "nxylkhcpRGM", "okn5Jo0BdOk", "plb5jEO4Unw", "pzMWYoeSCzw",
+  "qBqKuEQl9sI", "sevOYS5vp7U", "t0dnWvIfAZ0", "tSz-vQYacZs", "vGuyEm2KWSI", "vN8xskk-7G8", "va6aW8jnNEM",
+  "vnEANU7BqqY", "wbsT9xBVewM", "xEDnlOxeJH4", "xrPteyQLGAo", "yFxqt9Oku9A", "yaamXQLtB9M", "zNGamFp460o",
+  "eaM8JxEn6Ig", "SHvXdGxTLm0", "QKfRhY8qvhg"
+].forEach((id) => (window.PRESENTER[id] = "f"));

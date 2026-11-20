@@ -22,13 +22,13 @@
     },
     marchingBridge: {
       name: "Marching Glute Bridge", dumbbells: 0, reps: "10 marches each side", pattern: "bridge",
-      video: V("KsYwYl13IDc", "wide"), alts: [V("ZOWNWH8szDI", "wide"), V("ORO64L7Iz4w"), V("YxwXmbxly6s")],
+      video: V("KsYwYl13IDc", "wide"), alts: [V("ZOWNWH8szDI", "wide"), V("ORO64L7Iz4w"), V("YxwXmbxly6s"), V("-sTDH8Chc1E"), V("msfdrPWJ-9o", "wide")],
       primary: ["glutes"], secondary: ["hamstrings", "abs", "obliques"],
       cues: ["Bridge up and hold", "Lift one knee, then the other", "Don't let the hips drop or twist"],
     },
     couchHipThrust: {
       name: "Couch Hip Thrust", dumbbells: 1, reps: "12–15 reps", pattern: "bridge",
-      video: V("CwlagttgD5Y"), alts: [V("aVikygf5YKA"), V("XkiiUjR_zJ4")],
+      video: V("CwlagttgD5Y"), alts: [V("aVikygf5YKA"), V("XkiiUjR_zJ4"), V("DvPSiJ6FPxU"), V("i3FT7g-UpNg", "wide")],
       primary: ["glutes"], secondary: ["hamstrings", "quads", "abs"],
       cues: ["Upper back against the couch edge", "1 dumbbell on your hips", "Chin tucked, ribs down, squeeze at the top"],
     },
@@ -48,7 +48,7 @@
     // ---------- hinges ----------
     sumoDeadlift: {
       name: "Dumbbell Sumo Deadlift", dumbbells: 1, reps: "10–12 reps", pattern: "hinge",
-      video: V("tSz-vQYacZs"), alts: [V("f-RQq1fCX34"), V("SQWgbL0YGas", "wide")],
+      video: V("tSz-vQYacZs"), alts: [V("f-RQq1fCX34"), V("SQWgbL0YGas", "wide"), V("De9OUZz5W_I", "wide"), V("O3pmXUqgsU4", "wide")],
       primary: ["glutes", "adductors"], secondary: ["hamstrings", "quads", "lowerBack"],
       cues: ["Wide stance, toes out", "1 dumbbell hanging between your legs", "Flat back, stand tall and squeeze"],
     },
@@ -67,13 +67,13 @@
     },
     goodMorning: {
       name: "Dumbbell Good Morning", dumbbells: 1, reps: "10–12 reps", pattern: "hinge",
-      video: V("9prcXIdXev0"), alts: [V("4LYL84PV3AY"), V("MkyIs2uLjDo")],
+      video: V("9prcXIdXev0"), alts: [V("4LYL84PV3AY"), V("MkyIs2uLjDo"), V("H02OuhfYtoM")],
       primary: ["hamstrings", "glutes"], secondary: ["lowerBack", "abs"],
       cues: ["Hold 1 dumbbell at your chest", "Soft knees, push hips back", "Stand up by squeezing glutes"],
     },
     dumbbellDeadlift: {
       name: "Dumbbell Deadlift", dumbbells: 2, reps: "10–12 reps", pattern: "hinge",
-      video: V("5WxMW-Fu5KU", "wide"), alts: [V("plb5jEO4Unw", "wide"), V("XcPDvQlwPKg")],
+      video: V("5WxMW-Fu5KU", "wide"), alts: [V("plb5jEO4Unw", "wide"), V("XcPDvQlwPKg"), V("ElCIiU1FWxg")],
       primary: ["glutes", "hamstrings", "quads"], secondary: ["lowerBack", "forearms", "traps"],
       cues: ["Dumbbells beside your feet", "Chest up, flat back", "Push the floor away and stand tall"],
     },
@@ -140,7 +140,7 @@
     },
     lateralLunge: {
       name: "Lateral Lunge", dumbbells: 1, reps: "8 reps each side", pattern: "lunge",
-      video: V("O8k_pNbSOVM"), alts: [V("mKL3k6buTe0"), V("guAKp7vHzqQ"), V("8ANwlFziwtk")],
+      video: V("O8k_pNbSOVM"), alts: [V("mKL3k6buTe0"), V("guAKp7vHzqQ"), V("8ANwlFziwtk"), V("rngJ3yYCX6g")],
       primary: ["glutes", "adductors"], secondary: ["quads", "sideGlutes"],
       cues: ["Big step to the side", "Sit back into that hip, other leg straight", "Push back to the middle"],
     },
@@ -180,7 +180,7 @@
     // ---------- side glutes ----------
     fireHydrant: {
       name: "Fire Hydrant", dumbbells: 0, reps: "12 reps each side", pattern: "side",
-      video: V("YJdQCJGsOGk"), alts: [V("Y0G0DqWsSuM"), V("IRkRgk2Gc1E", "wide")],
+      video: V("YJdQCJGsOGk"), alts: [V("Y0G0DqWsSuM"), V("IRkRgk2Gc1E", "wide"), V("oVSlEf9qj1A", "wide")],
       primary: ["sideGlutes"], secondary: ["glutes", "abs"],
       cues: ["On hands and knees", "Lift one bent knee out to the side", "Keep hips level, don't lean"],
     },
@@ -198,7 +198,7 @@
     },
     standingAbduction: {
       name: "Standing Hip Abduction", dumbbells: 0, reps: "15 reps each side", pattern: "side",
-      video: V("-IlIs1LhVDY"), alts: [V("ITyJfMetA8s"), V("E36nkfxG15U"), V("qBqKuEQl9sI", "wide")],
+      video: V("-IlIs1LhVDY"), alts: [V("ITyJfMetA8s"), V("E36nkfxG15U"), V("qBqKuEQl9sI", "wide"), V("tfx_W3WJKks"), V("aJUtDmOtZC4")],
       primary: ["sideGlutes"], secondary: ["abs", "obliques"],
       cues: ["Stand tall, hand on a wall or chair", "Lift the leg out to the side", "Toes point forward, don't lean"],
     },
@@ -212,13 +212,13 @@
     // ---------- glute isolation ----------
     donkeyKick: {
       name: "Donkey Kick", dumbbells: 0, reps: "12–15 reps each side", pattern: "kickback",
-      video: V("SJ1Xuz9D-ZQ", "wide"), alts: [V("-mJAo1_zE7k"), V("KDmxshCrqA4")],
+      video: V("SJ1Xuz9D-ZQ", "wide"), alts: [V("-mJAo1_zE7k"), V("KDmxshCrqA4"), V("JsDRMr1T7Is")],
       primary: ["glutes"], secondary: ["hamstrings", "abs"],
       cues: ["On hands and knees", "Kick one bent leg up, sole to the ceiling", "Don't arch the lower back"],
     },
     standingKickback: {
       name: "Standing Glute Kickback", dumbbells: 0, reps: "15 reps each side", pattern: "kickback",
-      video: V("I1eq_u2snYI"), alts: [V("13d3DCI_-BI"), V("wbsT9xBVewM")],
+      video: V("I1eq_u2snYI"), alts: [V("13d3DCI_-BI"), V("wbsT9xBVewM"), V("iqP1OF0atKM")],
       primary: ["glutes"], secondary: ["hamstrings", "abs"],
       cues: ["Hands on a wall or chair", "Kick one straight leg back", "Squeeze, don't swing"],
     },

@@ -13,6 +13,7 @@
     rest: store.get("rest", 30),
     beeps: store.get("beeps", true),
     sound: store.get("sound", false),
+    coach: store.get("coach", "any"),   // videos by: "any" | "f" (women) | "m" (men)
   };
   const save = (k) => store.set(k, settings[k]);
 
@@ -24,7 +25,11 @@
   function videoOptions(key) {
     const e = EX[key];
     const custom = store.get("custom:" + key, null);
-    return (custom ? [custom] : []).concat([e.video], e.alts || []);
+    const all = [e.video].concat(e.alts || []);
+    // Keep videos matching the Videos setting; unknown presenters fit either. If a move has none, show them all.
+    const fits = (v) => settings.coach === "any" || !window.PRESENTER[v.id] || window.PRESENTER[v.id] === settings.coach;
+    const picked = all.filter(fits);
+    return (custom ? [custom] : []).concat(picked.length ? picked : all);
   }
   function currentVideo(key) {
     const opts = videoOptions(key);
@@ -279,6 +284,10 @@
   function renderSettings() {
     segmented($("restSeg"), [[20, "20s"], [30, "30s"], [45, "45s"], [0, "None"]], settings.rest, (v) => { settings.rest = v; save("rest"); renderSettings(); });
     segmented($("beepSeg"), [[true, "On"], [false, "Off"]], settings.beeps, (v) => { settings.beeps = v; save("beeps"); renderSettings(); });
+    segmented($("coachSeg"), [["any", "Anyone"], ["f", "Women"], ["m", "Men"]], settings.coach, (v) => {
+      if (v === settings.coach) return;
+      settings.coach = v; save("coach"); renderSettings(); renderHome();
+    });
     $("rules").innerHTML = window.RULES.map((r) => `<li>${r}</li>`).join("");
   }
   function segmented(el, options, value, onPick) {
