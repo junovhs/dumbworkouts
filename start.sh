@@ -2,6 +2,9 @@
 # Serves the site locally (YouTube embeds need a real web address, not file://).
 # Uses port 8765, or the next free one if that's taken.
 cd "$(dirname "$0")"
+if [ ! -x node_modules/.bin/tsc ]; then npm install --no-audit --no-fund; fi
+npm run build
+cd dist
 PORT="${PORT:-8765}"
 while ! python3 -c "import socket,sys; s=socket.socket(); s.bind(('127.0.0.1', int(sys.argv[1])))" "$PORT" 2>/dev/null; do
   PORT=$((PORT + 1))
