@@ -145,7 +145,6 @@
     });
     const day = DAYS[focus];
     document.documentElement.style.setProperty("--accent", day.color);
-    setImg($("ambientImg"), previewVideo(day.moves[0]));
     renderRounds();
   }
 
@@ -216,16 +215,19 @@
   }
 
   // Tilt the focused panel toward the mouse for a bit of depth.
+  let tiltQueued = null;
   $("carousel").addEventListener("mousemove", (e) => {
-    const p = panels[focus];
-    if (!p) return;
-    const r = p.getBoundingClientRect();
-    const x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
-    const inside = Math.abs(x) < 0.7 && Math.abs(y) < 0.7;
-    p.style.setProperty("--tx", inside ? (x * 10).toFixed(2) + "deg" : "0deg");
-    p.style.setProperty("--ty", inside ? (-y * 8).toFixed(2) + "deg" : "0deg");
-    p.style.setProperty("--gx", ((x + 0.5) * 100).toFixed(1) + "%");
-    p.style.setProperty("--gy", ((y + 0.5) * 100).toFixed(1) + "%");
+    if (!tiltQueued) requestAnimationFrame(() => {
+      const ev = tiltQueued; tiltQueued = null;
+      const p = panels[focus];
+      if (!p) return;
+      const r = p.getBoundingClientRect();
+      const x = (ev.clientX - r.left) / r.width - 0.5, y = (ev.clientY - r.top) / r.height - 0.5;
+      const inside = Math.abs(x) < 0.7 && Math.abs(y) < 0.7;
+      p.style.setProperty("--tx", inside ? (x * 8).toFixed(1) + "deg" : "0deg");
+      p.style.setProperty("--ty", inside ? (-y * 6).toFixed(1) + "deg" : "0deg");
+    });
+    tiltQueued = e;
   });
   $("carousel").addEventListener("mouseleave", () => {
     const p = panels[focus];
@@ -316,7 +318,7 @@
     const day = DAYS.find((d) => d.n === n);
     unlockAudio();
     sfx("start");
-    S = { day, rounds: settings.rounds, steps: buildSteps(day, settings.rounds), i: 0, paused: false, started: Date.now() };
+    S = { day, rounds: settings.rounds, steps: buildSteps(day, settings.rounds), i: 0, paused: false, started: Date.now(), spaceBlockUntil: Date.now() + 600 };
     document.documentElement.style.setProperty("--accent", day.color);
     show("session");
     requestWakeLock();
@@ -379,6 +381,8 @@
     renderPause();
   }
 
+  function setText(el, txt) { if (el.textContent !== txt) el.textContent = txt; }
+  function setClass(el, c, on) { if (el.classList.contains(c) !== on) el.classList.toggle(c, on); }
   function fmt(secs) {
     secs = Math.max(0, Math.ceil(secs));
     const m = Math.floor(secs / 60), s = secs % 60;
@@ -390,17 +394,17 @@
     const t = $("bigTimer"), side = $("sideLabel");
     const timed = st.type === "work" && EX[st.key].timed;
     if (st.type === "rest" || timed) {
-      t.classList.remove("hidden");
-      t.textContent = fmt(S.remaining);
-      t.classList.toggle("warn", S.remaining <= 3.05);
-    } else t.classList.add("hidden");
+      setClass(t, "hidden", false);
+      setText(t, fmt(S.remaining));
+      setClass(t, "warn", S.remaining <= 3.05);
+    } else setClass(t, "hidden", true);
     if (timed) {
-      side.classList.remove("hidden");
+      setClass(side, "hidden", false);
       const sides = EX[st.key].timed.sides;
-      side.textContent = `Side ${S.side + 1} of ${sides.length}: ${sides[S.side]}`;
-    } else side.classList.add("hidden");
+      setText(side, `Side ${S.side + 1} of ${sides.length}: ${sides[S.side]}`);
+    } else setClass(side, "hidden", true);
     const el = Math.floor((Date.now() - S.started) / 1000);
-    $("elapsed").textContent = `Workout time ${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}`;
+    setText($("elapsed"), `Workout time ${Math.floor(el / 60)}:${String(el % 60).padStart(2, "0")}`);
   }
 
   function renderPause() {
@@ -411,7 +415,8 @@
   }
 
   let lastTick = performance.now();
-  function tick(now) {
+  function tick() {
+    const now = performance.now();
     const dt = (now - lastTick) / 1000;
     lastTick = now;
     if (view === "session" && S) {
@@ -423,7 +428,6 @@
       }
       renderTimer();
     }
-    requestAnimationFrame(tick);
   }
 
   function timerDone() {
@@ -517,7 +521,6 @@
     const v = currentVideo(key);
     $("videoBox").className = "video-box " + (v.shape === "tall" ? "tall" : "wide");
     $("videoError").classList.add("hidden");
-    setImg($("sessionBgImg"), v);
     if (!playerReady) { pendingVideo = v; return; }
     playVideo(v);
   }
@@ -593,12 +596,22 @@
       if (k === "Enter" || k === "Escape" || k === " ") { e.preventDefault(); show("home"); renderHome(); }
       return;
     }
+    if (k === " ") {
+      e.preventDefault();
+      if (e.repeat || Date.now() < (S.spaceBlockUntil || 0)) return;
+      const now = Date.now();
+      if (now - lastSpace < DOUBLE_TAP_MS) { lastSpace = 0; next(); flash("NEXT ▶▶"); }
+      else { lastSpace = now; togglePause(); }
+      return;
+    }
     const map = {
-      " ": togglePause, Enter: next, ArrowRight: next, ArrowLeft: back, Backspace: back,
+      Enter: next, ArrowRight: next, ArrowLeft: back, Backspace: back,
       f: toggleFullscreen, F: toggleFullscreen, m: toggleSound, M: toggleSound, v: otherVideo, V: otherVideo, Escape: quit,
     };
     if (map[k]) { e.preventDefault(); map[k](); }
   });
+  const DOUBLE_TAP_MS = 400;
+  let lastSpace = 0;
   // Keep keyboard focus out of buttons so Space/Enter always go to our handler.
   document.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) b.blur(); });
 
@@ -616,7 +629,7 @@
   $("sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") toggleSheet(false); });
 
   renderHome();
-  requestAnimationFrame((t) => { lastTick = t; tick(t); });
+  setInterval(tick, 100);
 
   // exposed for quick testing in the console
   window.__workout = {
