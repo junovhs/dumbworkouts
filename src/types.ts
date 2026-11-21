@@ -22,13 +22,21 @@ interface Exercise {
 }
 interface Muscle { name: string; sci: string; group: string; tier: number; area: string; regions: string[]; does: string }
 interface Stabilizer { name: string; does: string }
-interface CoverageLevel { n: number; name: string; blurb: string }
+interface CoverStep { day: number; move: string; pct: number }
+/** a plan's coverage now, steps that add moves (up) or drop them (down), the reachable goal and what nothing trains */
+interface PlanCoverInfo { start: number; steps: CoverStep[]; trims: CoverStep[]; goal: string[]; unreachable: string[] }
 interface MuscleModel {
-  LEVELS: CoverageLevel[];
-  targets(level: number, areas?: string[]): string[];
+  targets(areas?: string[]): string[];
+  /** how much one main / secondary / stabilizer hit counts toward a target (1 = fully worked) */
+  WORK: { pri: number; sec: number; stab: number };
   reach(moves: string[]): { pri: Set<string>; any: Set<string> };
+  work(moves: string[]): Map<string, number>;
+  detail(moves: string[], targets: string[]): { full: string[]; light: string[]; none: string[]; work: Map<string, number> };
   volume(moves: string[], rounds?: number): Record<string, number>;
   coverage(moves: string[], targets: string[]): number;
+  fillSteps(days: string[][], pool: string[], targets: string[], dayFor?: (k: string, days: string[][]) => number, cost?: (k: string) => number): CoverStep[];
+  trimSteps(days: string[][], targets: string[], min?: number): CoverStep[];
+  applySteps(days: string[][], steps: CoverStep[], pct: number, start: number, trims?: CoverStep[]): string[][];
   label(target: string): string;
 }
 interface WorkoutDay {
@@ -51,6 +59,8 @@ interface PlanAnswers {
   moves: number;
   skip: string[];
   variety: string;
+  /** 0–100: how much of the body the week should reach (moves are added or dropped to get there); unset = as built */
+  coverage?: number | null;
   likes?: string[];
   dislikes?: string[];
   [key: string]: any;
@@ -65,6 +75,9 @@ interface WorkoutPlan {
 interface PlanTemplate { title: string; color: string; slots: string[][] }
 interface PlannerApi {
   generate(answers: PlanAnswers): WorkoutPlan;
+  /** base coverage, the steps that raise it, the reachable goal and what no allowed move trains */
+  coverInfo(plan: WorkoutPlan): PlanCoverInfo;
+  applyCoverage(plan: WorkoutPlan, info?: PlanCoverInfo): WorkoutPlan;
   regenerateDay(plan: WorkoutPlan, index: number): void;
   weeklySwap(plan: WorkoutPlan): void;
   weekKey(date: Date): string;
@@ -103,7 +116,11 @@ interface MenuItem {
   area?: string;
   blurb?: string;
 }
-interface WizardState { step: number; cur: number; answers: PlanAnswers; draft: WorkoutPlan | null }
+interface WizardState {
+  step: number; cur: number; answers: PlanAnswers; draft: WorkoutPlan | null;
+  /** plan without coverage extras, and what the Coverage slider can add to it */
+  base?: WorkoutPlan; info?: PlanCoverInfo;
+}
 type WorkoutStep =
   | { type: "work"; key: string; round: number; idx: number }
   | { type: "rest"; label: string; secs: number; next: string; round: number; idx: number };

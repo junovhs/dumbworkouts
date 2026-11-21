@@ -24,23 +24,17 @@
 
     <footer class="hud-bottom">
       <div class="hud-left">
-        <button class="hud-btn" id="settingsBtn"><kbd>S</kbd> Settings</button>
-        <button class="hud-btn" id="planBtn"><kbd>P</kbd> My plan</button>
-        <button class="hud-btn" id="calBtn"><kbd>C</kbd> Calendar</button>
-        <button class="hud-btn" id="tourBtn"><kbd>?</kbd> Tour</button>
+        <button class="hud-btn" id="settingsBtn">Settings</button>
+        <button class="hud-btn" id="calBtn">Calendar</button>
+        <button class="hud-btn" id="tourBtn">Tour</button>
       </div>
 
       <div class="rounds">
         <span class="rounds-label">Rounds</span>
         <div class="rounds-pick" id="roundsPick"></div>
         <span class="rounds-time" id="roundsTime"></span>
-        <span class="hint"><kbd>▲</kbd><kbd>▼</kbd></span>
       </div>
 
-      <div class="key-hints">
-        <span><kbd>◀</kbd><kbd>▶</kbd> Choose day</span>
-        <span><kbd>Enter</kbd> Start</span>
-      </div>
     </footer>
 
     <div class="sheet hidden" id="sheet">
@@ -63,7 +57,7 @@
         </div>
         <h3>Quick rules</h3>
         <ul class="rules" id="rules"></ul>
-        <button class="sheet-close" id="sheetClose">Close <kbd>Esc</kbd></button>
+        <button class="sheet-close" id="sheetClose">Close</button>
       </div>
     </div>
 
@@ -75,17 +69,34 @@
         <div class="welcome-tiles" id="welcomeTiles"></div>
         <p class="welcome-demo" id="welcomeDemo"></p>
         <div class="welcome-actions">
-          <button class="hud-btn" id="welcomeClose">Just look around <kbd>Esc</kbd></button>
+          <button class="hud-btn" id="welcomeClose">Just look around</button>
         </div>
       </div>
     </div>
   </main>
 
-  <!-- À LA CARTE MENU -->
+  <!-- MY PLAN -->
+  <main id="planview" class="view hidden">
+    <div class="ambient"></div>
+    <header class="menu-head">
+      <button class="hud-btn" id="pvBack">◀ Back</button>
+      <div class="pv-head"><h1>My Plan</h1><span id="pvSub"></span></div>
+      <div class="menu-rounds"><span>Rounds</span><div class="seg" id="pvRounds"></div></div>
+    </header>
+    <div class="pv-body">
+      <section class="pv-week" aria-label="This week's workouts">
+        <div class="pv-week-h"><span class="pv-week-t">This week</span><span class="pv-week-sub" id="pvWeekSub"></span><span class="pv-week-bar" id="pvWeekBar"></span></div>
+        <div class="pv-days" id="pvDays"></div>
+      </section>
+      <button class="pv-edit" id="pvEdit"></button>
+    </div>
+  </main>
+
+  <!-- BUILD A WORKOUT -->
   <main id="menu" class="view hidden">
     <div class="ambient"></div>
     <header class="menu-head">
-      <button class="hud-btn" id="menuBack">◀ Back <kbd>Esc</kbd></button>
+      <button class="hud-btn" id="menuBack">◀ Back</button>
       <h1>Build a workout</h1>
       <div class="menu-rounds"><span>Rounds</span><div class="seg" id="menuRounds"></div></div>
     </header>
@@ -96,17 +107,21 @@
         <ol class="set-list" id="setList"></ol>
         <div class="set-actions">
           <div class="set-tools">
-            <button class="hud-btn" id="addBtn">＋ Add moves <kbd>A</kbd></button>
-            <button class="hud-btn" id="shuffleBtn">↻ Shuffle <kbd>R</kbd></button>
-            <button class="hud-btn" id="saveSetBtn">♥ Save set <kbd>S</kbd></button>
-            <button class="hud-btn hidden" id="delSetBtn">🗑 Delete <kbd>Del</kbd></button>
+            <button class="hud-btn" id="addBtn">＋ Add moves</button>
+            <button class="hud-btn" id="shuffleBtn">↻ Shuffle</button>
+            <button class="hud-btn" id="saveSetBtn">📌 Pin to home</button>
+            <button class="hud-btn hidden" id="delSetBtn">Unpin</button>
           </div>
-          <button class="big-btn" id="setStart">Start <kbd>Enter</kbd></button>
+          <button class="big-btn" id="setStart">Start</button>
         </div>
       </section>
       <aside class="coverage">
         <h3>Coverage</h3>
-        <div class="seg cov-level" id="coverLevel"></div>
+        <div class="cov-slider">
+          <input type="range" id="coverRange" min="0" max="100" step="1" value="0" aria-label="How much of this area to cover">
+          <div class="cov-ticks" id="coverTicks"></div>
+          <div class="cov-ends"><span>Big movers only</span><span>Most coverage</span></div>
+        </div>
         <div class="cov-meter" id="coverMeter"></div>
         <h3 class="cov-works">What this set works</h3>
         <div id="setMap"></div>
@@ -119,34 +134,30 @@
           <h2>All exercises</h2>
           <input id="pickSearch" type="search" placeholder="Search a move or muscle…" autocomplete="off">
           <span class="pick-count" id="pickCount"></span>
-          <button class="big-btn" id="pickDone">Done <kbd>Esc</kbd></button>
+          <button class="big-btn" id="pickDone">Done</button>
         </div>
         <div class="seg pick-filters" id="pickFilters"></div>
         <div class="pick-grid" id="pickGrid"></div>
       </div>
     </div>
-    <footer class="key-hints menu-keys">
-      <span><kbd>▲</kbd><kbd>▼</kbd> Body area</span><span><kbd>A</kbd> Browse all moves</span><span><kbd>R</kbd> Shuffle</span><span><kbd>S</kbd> Save set</span><span><kbd>1</kbd>–<kbd>3</kbd> Rounds</span><span><kbd>[</kbd><kbd>]</kbd> Coverage</span><span><kbd>Enter</kbd> Start</span>
-    </footer>
   </main>
 
   <!-- SETUP WIZARD -->
   <main id="wizard" class="view hidden">
     <div class="ambient"></div>
     <header class="menu-head">
-      <button class="hud-btn" id="wzBack">◀ Back <kbd>Backspace</kbd></button>
+      <button class="hud-btn" id="wzBack">◀ Back</button>
       <h1>My plan</h1>
       <div class="wz-pips" id="wzPips"></div>
     </header>
     <div class="wz-body" id="wzBody"></div>
-    <footer class="key-hints menu-keys" id="wzKeys"></footer>
   </main>
 
   <!-- CALENDAR -->
   <main id="calendar" class="view hidden">
     <div class="ambient"></div>
     <header class="menu-head">
-      <button class="hud-btn" id="calBack">◀ Back <kbd>Esc</kbd></button>
+      <button class="hud-btn" id="calBack">◀ Back</button>
       <h1>Progress</h1>
       <div class="cal-nav"><button class="icon-btn" id="calPrev">◀</button><b id="calTitle"></b><button class="icon-btn" id="calNext">▶</button></div>
     </header>
@@ -154,7 +165,6 @@
       <section class="cal-grid" id="calGrid"></section>
       <aside class="cal-side" id="calStats"></aside>
     </div>
-    <footer class="key-hints menu-keys"><span><kbd>◀</kbd><kbd>▶</kbd> Month</span><span><kbd>T</kbd> Today</span><span><kbd>Esc</kbd> Back</span></footer>
   </main>
 
   <!-- SESSION -->
@@ -176,7 +186,7 @@
           <div id="player"></div>
           <div class="shield" id="shield" title="Click to pause / play"></div>
           <div class="paused-badge hidden" id="pausedBadge">PAUSED<small>press Space</small></div>
-          <div class="video-error hidden" id="videoError">Video didn't load.<br>Press <kbd>V</kbd> to try another.</div>
+          <div class="video-error hidden" id="videoError">Video didn't load.<br>Tap “Other video” to try another.</div>
         </div>
       </div>
 
@@ -196,14 +206,14 @@
     </div>
 
     <div class="controls">
-      <button class="ctl" id="backBtn"><span class="ic">◀</span><span>Back</span><kbd>←</kbd></button>
-      <button class="ctl" id="pauseBtn"><span class="ic" id="pauseIc">❚❚</span><span id="pauseTxt">Pause</span><kbd>Space</kbd></button>
-      <button class="ctl primary" id="nextBtn"><span class="ic">✓</span><span id="nextTxt">Done – Next</span><span class="kk"><kbd>Space ×2</kbd> <kbd>Enter</kbd></span></button>
-      <button class="ctl small" id="soundBtn"><span class="ic" id="soundIc">🔇</span><span>Sound</span><kbd>M</kbd></button>
-      <button class="ctl small" id="favBtn"><span class="ic" id="favIc">♡</span><span>Favorite</span><kbd>H</kbd></button>
-      <button class="ctl small" id="nopeBtn"><span class="ic">⊘</span><span>Not for me</span><kbd>X</kbd></button>
-      <button class="ctl small" id="altBtn"><span class="ic">↻</span><span>Other video</span><kbd>V</kbd></button>
-      <button class="ctl small" id="fsBtn"><span class="ic">⛶</span><span>Full screen</span><kbd>F</kbd></button>
+      <button class="ctl" id="backBtn"><span class="ic">◀</span><span>Back</span></button>
+      <button class="ctl" id="pauseBtn"><span class="ic" id="pauseIc">❚❚</span><span id="pauseTxt">Pause</span></button>
+      <button class="ctl primary" id="nextBtn"><span class="ic">✓</span><span id="nextTxt">Done – Next</span></button>
+      <button class="ctl small" id="soundBtn"><span class="ic" id="soundIc">🔇</span><span>Sound</span></button>
+      <button class="ctl small" id="favBtn"><span class="ic" id="favIc">♡</span><span>Favorite</span></button>
+      <button class="ctl small" id="nopeBtn"><span class="ic">⊘</span><span>Not for me</span></button>
+      <button class="ctl small" id="altBtn"><span class="ic">↻</span><span>Other video</span></button>
+      <button class="ctl small" id="fsBtn"><span class="ic">⛶</span><span>Full screen</span></button>
     </div>
   </main>
 
@@ -219,7 +229,7 @@
         <div class="feel-btns" id="feelBtns"></div>
         <div class="feel-tip" id="feelTip"></div>
       </div>
-      <button class="big-btn" id="homeBtn">Continue <kbd>Enter</kbd></button>
+      <button class="big-btn" id="homeBtn">Continue</button>
     </div>
   </main>
 

@@ -116,6 +116,43 @@
     return r;
   }
 
+  // ---------- coverage: extra moves on top of the base plan ----------
+  // answers.coverage (0–100) is how much of the body the week should reach. The base plan comes first; then the
+  // fewest extra moves needed are added, each into the workout whose muscles it fits best (and the shorter one on a
+  // tie), or, below the base's coverage, the moves that cost the least coverage are dropped (3 a workout at least).
+  const MM = window.MUSCLE_MODEL;
+  function dayFor(k: string, days: string[][]): number {
+    // fit = share of the day's moves that work one of this move's muscle groups (0–1); each move a day has
+    // over the shortest day costs 0.3, so extras spread out unless a move clearly belongs somewhere
+    const groupsOf = (x: string) => new Set(EX[x].primary.map((m) => MUS[m].group));
+    const mine = groupsOf(k), minLen = Math.min(...days.map((d) => d.length));
+    let best = 0, bs = -Infinity;
+    days.forEach((d, i) => {
+      const fit = d.length ? d.filter((x) => [...groupsOf(x)].some((g) => mine.has(g))).length / d.length : 0;
+      const s = fit - (d.length - minLen) * 0.3;
+      if (s > bs) { best = i; bs = s; }
+    });
+    return best;
+  }
+  function coverInfo(plan: WorkoutPlan) {
+    const a = plan.answers, pool = Object.keys(EX).filter((k) => allowed(k, a)), lvl = maxLevel(a);
+    const all = MM.targets(), reachable = MM.reach(pool).any;
+    const goal = all.filter((t) => reachable.has(t));
+    const days = plan.days.map((d) => d.moves);
+    const cost = (k: string) => Math.max(0, EX[k].level - lvl) * 1.5 - ((a.likes || []).includes(k) ? 0.5 : 0);
+    const steps = MM.fillSteps(days, pool, goal, dayFor, cost);
+    const trims = MM.trimSteps(days, goal, 3);
+    return { start: MM.coverage(days.flat(), goal), steps, trims, goal, unreachable: all.filter((t) => !reachable.has(t)) };
+  }
+  // plan with extra moves added until coverage reaches answers.coverage (in place)
+  function applyCoverage(plan: WorkoutPlan, info?: PlanCoverInfo): WorkoutPlan {
+    if (plan.answers.coverage == null) return plan;
+    info = info || coverInfo(plan);
+    const days = MM.applySteps(plan.days.map((d) => d.moves), info.steps, plan.answers.coverage / 100, info.start, info.trims);
+    plan.days.forEach((d, i) => (d.moves = days[i]));
+    return plan;
+  }
+
   function generate(a: PlanAnswers): WorkoutPlan {
     const seen = new Map<string, number>();
     const tpls = rotationFor(a);
@@ -126,7 +163,7 @@
     days.forEach((d) => (count[d.title] = (count[d.title] || 0) + 1));
     const nth: Record<string, number> = {};
     days.forEach((d) => { if (count[d.title] > 1) { nth[d.title] = (nth[d.title] || 0) + 1; d.title += " " + "ABCDEF"[nth[d.title] - 1]; } });
-    return { id, answers: a, days, week: weekKey(new Date()), created: new Date().toISOString() };
+    return applyCoverage({ id, answers: a, days, week: weekKey(new Date()), created: new Date().toISOString() });
   }
 
   // Fresh moves for one workout, avoiding what it had last time.
@@ -134,6 +171,7 @@
     const d = plan.days[i], seen = new Map();
     plan.days.forEach((x, j) => { if (j !== i) x.moves.forEach((k) => seen.set(k, 1)); });
     d.moves = buildWorkout(d.tpl, plan.answers, seen, new Set(d.moves));
+    applyCoverage(plan);
   }
 
   // Swap two moves per workout for a same-pattern alternative.
@@ -155,5 +193,5 @@
     return d.toISOString().slice(0, 10);
   }
 
-  window.PLANNER = { generate, regenerateDay, weeklySwap, weekKey, rotationFor, allowed, maxLevel, TEMPLATES: T, FLAGS };
+  window.PLANNER = { generate, coverInfo, applyCoverage, regenerateDay, weeklySwap, weekKey, rotationFor, allowed, maxLevel, TEMPLATES: T, FLAGS };
 })();

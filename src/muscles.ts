@@ -2,8 +2,8 @@
 // Two layers, counted differently:
 //  - 30 prime movers in 12 groups: the muscles that grow from sets and reps. A main muscle counts as 1 set, a secondary as ½.
 //  - 8 stabilizer groups: small muscles that hold joints steady. Counted as covered or not, never as volume.
-// Each prime mover has a size tier, which the Coverage control uses:
-//   1 = big movers, 2 = the other major muscles, 3 = the smaller ones. Stabilizers sit at level 4.
+// Each prime mover has a size tier (1 = big movers, 2 = other major muscles, 3 = smaller ones); when the Coverage
+// slider adds moves, bigger muscles get covered first.
 (() => {
   // [id, name, scientific name, group, tier, menu area, body-map regions, what it does]
   const P: Array<[string, string, string, string, number, string, string[], string]> = [
@@ -126,18 +126,18 @@
   }
 
   // ---------- coverage ----------
-  // Levels for the Coverage control. Each level's targets include everything below it.
-  const LEVELS: CoverageLevel[] = [
-    { n: 1, name: "Big movers", blurb: "Glutes, quads, hamstrings, chest, lats, mid back" },
-    { n: 2, name: "Major muscles", blurb: "Adds shoulders, abs, obliques, side glutes, inner thighs, triceps…" },
-    { n: 3, name: "Every muscle", blurb: "Adds biceps heads, forearms, rear shoulders, calves, hip flexors…" },
-    { n: 4, name: "+ Stabilizers", blurb: "Adds rotator cuff, deep core, deep hip, feet & ankles, grip…" },
-  ];
+  // A move doesn't train every muscle it touches equally, so coverage counts how much work each target gets:
+  // a main muscle counts 1, a secondary ⅓ (WORK.sec), a stabilizer challenge ½. A target is fully covered at 1:
+  // one move where it's a main muscle, or about three where it only helps. Coverage % is the average over the
+  // targets of min(1, work), so muscles that are only barely touched pull it down instead of counting as done.
+  // The Coverage slider asks "how much do I care to cover?"; fillSteps answers with the fewest extra moves (a
+  // greedy cover: each step adds the move that adds the most missing work, bigger muscles weighing more).
+  const WORK = { pri: 1, sec: 0.35, stab: 0.5 };
   const MUS = window.MUSCLES, STAB = window.STABILIZERS, EX = window.EXERCISES;
-  // targets are ids: muscles as-is, stabilizers prefixed "s:"
-  function targets(level: number, areas?: string[]): string[] {
-    const mus = Object.keys(MUS).filter((m) => MUS[m].tier <= level && (!areas || areas.includes(MUS[m].area)));
-    return level >= 4 ? [...mus, ...Object.keys(STAB).map((s) => "s:" + s)] : mus;
+  // every target: muscles as-is, stabilizers prefixed "s:"
+  const ALL = [...Object.keys(MUS), ...Object.keys(STAB).map((s) => "s:" + s)];
+  function targets(areas?: string[]): string[] {
+    return ALL.filter((t) => t.startsWith("s:") || !areas || areas.includes(MUS[t].area));
   }
   // what a list of moves reaches: main muscles, any muscle (main or secondary), stabilizers
   function reach(moves: string[]) {
@@ -151,6 +151,19 @@
     }
     return { pri, any };
   }
+  // work per target from a list of moves (uncapped)
+  function work(moves: string[]): Map<string, number> {
+    const w = new Map<string, number>();
+    const add = (t: string, v: number) => w.set(t, (w.get(t) || 0) + v);
+    for (const k of moves) {
+      const e = EX[k];
+      if (!e) continue;
+      e.primary.forEach((m) => add(m, WORK.pri));
+      e.secondary.forEach((m) => add(m, WORK.sec));
+      e.stab.forEach((s) => add("s:" + s, WORK.stab));
+    }
+    return w;
+  }
   // sets per week per muscle: main = 1 set, secondary = ½, times rounds
   function volume(moves: string[], rounds = 1): Record<string, number> {
     const v: Record<string, number> = {};
@@ -162,13 +175,99 @@
     }
     return v;
   }
-  // share of `tgts` that `moves` reach, 0–1
+  // average of min(1, work) over `tgts`, 0–1
   function coverage(moves: string[], tgts: string[]): number {
     if (!tgts.length) return 1;
-    const { any } = reach(moves);
-    return tgts.filter((t) => any.has(t)).length / tgts.length;
+    const w = work(moves);
+    return tgts.reduce((s, t) => s + Math.min(1, w.get(t) || 0), 0) / tgts.length;
+  }
+  // each target's state for display: full (≥1), light (some work), none
+  function detail(moves: string[], tgts: string[]) {
+    const w = work(moves), full: string[] = [], light: string[] = [], none: string[] = [];
+    for (const t of tgts) { const v = w.get(t) || 0; (v >= 1 - 1e-9 ? full : v > 0 ? light : none).push(t); }
+    return { full, light, none, work: w };
+  }
+  const weight = (t: string) => (t.startsWith("s:") ? 1 : ({ 1: 3, 2: 2, 3: 1.5 }[MUS[t].tier] || 1));
+  // weighted value of the capped work, used to rank moves to add or drop
+  const value = (w: Map<string, number>, goal: string[]) => goal.reduce((s, t) => s + weight(t) * Math.min(1, w.get(t) || 0), 0);
+
+  // Steps that raise coverage of `days` (one list of moves per workout) toward 100% of the reachable targets.
+  // `pool`: moves allowed. `dayFor`: which workout a move goes into (default: the first). `cost`: soft penalty
+  // per move (harder than your level…). Each step reports coverage after it is applied.
+  function fillSteps(days: string[][], pool: string[], tgts: string[],
+    dayFor: (k: string, days: string[][]) => number = () => 0, cost: (k: string) => number = () => 0): CoverStep[] {
+    const reachable = reach(pool).any;
+    const goal = tgts.filter((t) => reachable.has(t));
+    const cur = days.map((d) => [...d]);
+    const used = new Set(cur.flat());
+    const steps: CoverStep[] = [];
+    const moveWork = new Map(pool.map((k) => [k, work([k])]));
+    for (;;) {
+      const w = work(cur.flat());
+      if (goal.every((t) => (w.get(t) || 0) >= 1 - 1e-9)) break;
+      let best: string | null = null, bs = 0.05;
+      for (const k of pool) {
+        if (used.has(k)) continue;
+        let g = 0;
+        for (const [t, v] of moveWork.get(k)) {
+          const have = Math.min(1, w.get(t) || 0);
+          if (have < 1 && goal.includes(t)) g += weight(t) * (Math.min(1, have + v) - have);
+        }
+        if (g <= 0) continue;
+        g -= cost(k) + Math.random() * 0.1;
+        if (g > bs) { best = k; bs = g; }
+      }
+      if (!best) break;
+      const day = dayFor(best, cur);
+      cur[day].push(best);
+      used.add(best);
+      steps.push({ day, move: best, pct: coverage(cur.flat(), goal) });
+    }
+    return steps;
+  }
+  // The other direction, for the low end of the slider: drop moves one at a time, always the one whose loss
+  // costs the least coverage (big muscles weigh most), never below `min` moves a workout. Each step reports
+  // coverage after the move is dropped.
+  function trimSteps(days: string[][], tgts: string[], min = 3): CoverStep[] {
+    const cur = days.map((d) => [...d]), steps: CoverStep[] = [];
+    for (;;) {
+      const all = value(work(cur.flat()), tgts);
+      let best: { day: number; j: number } | null = null, bs = Infinity;
+      cur.forEach((d, i) => {
+        if (d.length <= min) return;
+        d.forEach((_, j) => {
+          const rest = cur.map((x, ii) => (ii === i ? x.filter((__, jj) => jj !== j) : x)).flat();
+          const loss = all - value(work(rest), tgts) - d.length * 0.01 + Math.random() * 0.001;
+          if (loss < bs) { best = { day: i, j }; bs = loss; }
+        });
+      });
+      if (!best) break;
+      const [move] = cur[best.day].splice(best.j, 1);
+      steps.push({ day: best.day, move, pct: coverage(cur.flat(), tgts) });
+    }
+    return steps;
+  }
+  // Shape `days` to a target coverage `pct` (0–1) with the fewest moves: below `start` (the coverage of `days`
+  // as they are) drop trims while coverage stays at or above pct; above it add steps until pct is reached.
+  function applySteps(days: string[][], steps: CoverStep[], pct: number, start: number, trims: CoverStep[] = []): string[][] {
+    const out = days.map((d) => [...d]);
+    if (pct < start - 1e-9) {
+      for (const t of trims) {
+        if (t.pct < pct - 1e-9) break;
+        const j = out[t.day].indexOf(t.move);
+        if (j >= 0) out[t.day].splice(j, 1);
+      }
+      return out;
+    }
+    let c = start;
+    for (const st of steps) {
+      if (c >= pct - 1e-9) break;
+      out[st.day].push(st.move);
+      c = st.pct;
+    }
+    return out;
   }
   const label = (t: string) => (t.startsWith("s:") ? STAB[t.slice(2)].name : MUS[t].name);
 
-  window.MUSCLE_MODEL = { LEVELS, targets, reach, volume, coverage, label };
+  window.MUSCLE_MODEL = { WORK, targets, reach, work, detail, volume, coverage, fillSteps, trimSteps, applySteps, label };
 })();

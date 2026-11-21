@@ -6,7 +6,7 @@ Guided, hands-free dumbbell workout player with a YouTube demo for every move. F
 
 Send people **https://dumbworkouts.pages.dev/?demo**. It opens with 8 weeks of made-up workouts, a plan, favorites and a saved set, so the calendar and plan look lived-in. Demo data is kept separately (`demo:` keys) and reset on every visit, so it never touches real progress.
 
-First-time visitors on the normal link get a welcome screen with four tiles (try a workout, build a plan, à la carte, progress) instead of being dropped into the plan wizard. Press `?` or Tour on the start page to see it again.
+First-time visitors on the normal link get a welcome screen with four tiles (try a workout, build a plan, build a workout, progress) instead of being dropped into the plan wizard. Tour on the start page shows it again.
 
 ## Run it
 
@@ -19,7 +19,7 @@ Opens http://localhost:8765. In Settings, "Demo videos with" picks Anyone / Wome
 ## Controls
 
 During a workout: Space pause/play · Space twice quickly (or Enter) next move · ← back · F full screen · M video sound · V try another video · H favorite · X never show this move · Esc quit.
-Start page: ◀ ▶ choose · Enter start · ▲ ▼ rounds · P my plan · C calendar · S settings. À la carte: ▲ ▼ area · A browse all moves · R shuffle · S save set · Del delete set. "Pick your own" starts empty so you can hand-pick every move.
+Home: Build a workout, My Plan (this week's days, framed together, with a ✓ on each day done this week, and Edit plan), then any workouts pinned from the builder. Both the builder and the plan have a Coverage slider: drag it right and the fewest extra moves are added to work more of the body; drag it left for fewer moves, big muscles first. Coverage counts a muscle as fully worked once it gets one main-muscle move (or about three where it only helps), so lightly touched muscles show as such. Arrow keys, Enter and Esc work for navigating; workout keys are listed in Settings.
 After a workout: 1–3 rate how it felt · Y accept the suggested change.
 
 Moves, cues and videos: `src/data.ts` (program days) and `src/library.ts` (extra moves). Muscles: `src/muscles.ts` holds the 30 prime movers, 8 stabilizer groups, every move's muscle tags and the coverage math. Plan generator, difficulty levels and skip tags: `src/plan.ts`.

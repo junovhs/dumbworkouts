@@ -32,7 +32,7 @@
       const rounds = week < 3 ? 1 : week < 6 ? 2 : 3;
       const feel = rnd() < 0.2 ? "easy" : rnd() < 0.85 ? "right" : "hard";
       if (rnd() < 0.15) {
-        hist.push({ day: null, prog: null, custom: "Butt", title: "Butt (à la carte)", color: "#e8336b", moves: 5, rounds,
+        hist.push({ day: null, prog: null, custom: "Butt", title: "Butt workout", color: "#e8336b", moves: 5, rounds,
           date: d.toISOString(), minutes: 7 * rounds + Math.floor(rnd() * 4), feel });
       } else {
         const day = p.days[n++ % p.days.length];
@@ -142,7 +142,7 @@
   function show(v) {
     view = v;
     document.body.dataset.view = v;
-    for (const id of ["home", "menu", "wizard", "calendar", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
+    for (const id of ["home", "planview", "menu", "wizard", "calendar", "session", "done"]) $(id).classList.toggle("hidden", id !== v);
     if (v === "home") startPreview(); else stopPreview();
   }
 
@@ -186,14 +186,23 @@
     return lo === hi ? dumbbellText(lo) : `${lo}–${hi} dumbbells`;
   }
 
-  const MENU_CARD: WorkoutDay = { menu: true, title: "À la carte", color: "#f5b82e",
+  // Home cards: Build a workout, My Plan, then every workout you pinned from the builder.
+  const MENU_CARD: WorkoutDay = { menu: true, title: "Build a workout", color: "#f5b82e",
     moves: ["couchHipThrust", "sumoSquat", "curtsyLunge", "fireHydrant", "singleLegRdl"] };
-  const PLAN_CARD: WorkoutDay = { plan: true, title: "My plan", color: "#22c38e",
+  const PLAN_CARD: WorkoutDay = { plan: true, title: "My Plan", color: "#22c38e",
     moves: ["gobletSquat", "floorPress", "couchHipThrust", "bentOverRow", "deadBug"] };
+  const PLAN_INDEX = 1;
   let CARDS: WorkoutDay[] = [];
-  let focus = 0;
+  let focus = PLAN_INDEX;
   let panels: HTMLElement[] = [];
-  function activate(i) { const c = CARDS[i]; c.menu ? openMenu() : c.plan ? openWizard() : startSession(c); }
+  function activate(i) { const c = CARDS[i]; c.menu ? openMenu() : c.plan ? openPlanView() : startSession(c); }
+  // Monday 00:00 of this week, local time
+  function weekStart(): Date { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; }
+  // when this plan day was last done this week (or null)
+  function doneThisWeek(n: number): WorkoutHistory | null {
+    const ws = weekStart().getTime(), id = progId();
+    return [...history()].reverse().find((x) => x.day === n && (x.prog || "classic") === id && new Date(x.date).getTime() >= ws) || null;
+  }
   const FOCUS_LABEL = { balanced: "Balanced", booty: "Booty focus", lower: "Legs & butt", upper: "Upper body" };
   const LEVEL_LABEL = { new: "Brand new", back: "Getting back into it", regular: "Regular" };
   function planLines() {
@@ -208,52 +217,36 @@
     wrap.innerHTML = "";
     const h = history(), sug = suggestedDay(), id = progId();
     panels = CARDS.map((d, i) => {
-      const last = d.n && [...h].reverse().find((x) => x.day === d.n && (x.prog || "classic") === id);
+      const last = d.custom && [...h].reverse().find((x) => x.custom === d.custom);
       const p = document.createElement("article");
       p.className = "p3d" + (d.menu ? " menu-card" : "") + (d.plan ? " plan-card" : "");
       p.style.setProperty("--c", d.color);
-      p.innerHTML = d.plan ? `
-        <div class="p-art">
-          <img class="p-photo" alt="">
-          <div class="p-vid"></div>
-        </div>
-        <div class="p-shade"></div>
-        <div class="p-gloss"></div>
-        <div class="p-top"><span class="p-day">${plan ? "YOUR PLAN" : "SET UP"}</span>${plan ? "" : '<span class="p-next">NEW</span>'}</div>
+      const art = `<div class="p-art"><img class="p-photo" alt=""><div class="p-vid"></div></div><div class="p-shade"></div><div class="p-gloss"></div>`;
+      const days = program(), done = days.filter((x) => doneThisWeek(x.n)).length;
+      p.innerHTML = d.plan ? `${art}
+        <div class="p-top"><span class="p-day">${plan ? "YOUR WEEK" : "CLASSIC DAYS"}</span>${done ? `<span class="p-last">✓ ${done} of ${days.length} this week</span>` : '<span class="p-next">UP NEXT</span>'}</div>
         <div class="p-body">
-          <h2 class="p-title">${plan ? "EDIT<br>MY PLAN" : "BUILD<br>MY PLAN"}</h2>
-          <div class="p-meta"><span>${plan ? plan.days.length + " workouts" : "about 1 minute"}</span><span>${plan ? "rotation" : "4 questions"}</span></div>
-          <ol class="p-moves">${planLines().map(([k, v], j) => `<li data-j="${j}"><span>${k}</span><em>${v}</em></li>`).join("")}</ol>
-          <button class="p-go">${plan ? "CHANGE PLAN" : "LET'S GO"} <kbd>Enter</kbd></button>
-        </div>` : d.menu ? `
-        <div class="p-art">
-          <img class="p-photo" alt="">
-          <div class="p-vid"></div>
-        </div>
-        <div class="p-shade"></div>
-        <div class="p-gloss"></div>
-        <div class="p-top"><span class="p-day">BUILD YOUR OWN</span><span class="p-next">NEW</span></div>
+          <h2 class="p-title">MY<br>PLAN</h2>
+          <div class="p-meta"><span>${days.length} days</span><span>${plan ? FOCUS_LABEL[plan.answers.focus] : "Days 1–4"}</span></div>
+          <ol class="p-moves">${days.map((x, j) => `<li data-j="${j}"><span>Day ${x.n} · ${x.title}</span><em>${doneThisWeek(x.n) ? "✓ done" : x.n === sug ? "up next" : x.moves.length + " moves"}</em></li>`).join("")}</ol>
+          <button class="p-go">OPEN</button>
+        </div>` : d.menu ? `${art}
+        <div class="p-top"><span class="p-day">YOUR WAY</span></div>
         <div class="p-body">
-          <h2 class="p-title">À LA<br>CARTE</h2>
-          <div class="p-meta"><span>${Object.keys(EX).length} moves</span><span>${savedSets().length ? savedSets().length + " saved sets" : "pick a body area"}</span></div>
+          <h2 class="p-title">BUILD A<br>WORKOUT</h2>
+          <div class="p-meta"><span>${Object.keys(EX).length} moves</span><span>pick an area or your own</span></div>
           <ol class="p-moves">${AREAS.map((a, j) => `<li data-j="${j}"><span>${a.name}</span><em>${poolFor(a.id).length} moves</em></li>`).join("")}</ol>
-          <button class="p-go">OPEN MENU <kbd>Enter</kbd></button>
-        </div>` : `
-        <div class="p-art">
-          <img class="p-photo" alt="">
-          <div class="p-vid"></div>
-        </div>
-        <div class="p-shade"></div>
-        <div class="p-gloss"></div>
+          <button class="p-go">OPEN</button>
+        </div>` : `${art}
         <div class="p-top">
-          <span class="p-day">${plan ? "WORKOUT" : "DAY"} ${d.n}</span>
-          ${d.n === sug ? '<span class="p-next">UP NEXT</span>' : last ? `<span class="p-last">✓ ${fmtDate(last.date)}</span>` : ""}
+          <span class="p-day">PINNED</span>
+          ${last ? `<span class="p-last">✓ ${fmtDate(last.date)}</span>` : ""}
         </div>
         <div class="p-body">
           <h2 class="p-title">${d.title.replace(/ \+ /g, "<br>+ ")}</h2>
           <div class="p-meta"><span>${d.moves.length} moves</span><span class="p-mins" data-n="${d.moves.length}"></span><span>${dumbbellRange(d)}</span></div>
           <ol class="p-moves">${d.moves.map((k, j) => `<li data-j="${j}"><span>${EX[k].name}</span><em>${EX[k].reps}</em></li>`).join("")}</ol>
-          <button class="p-go">START <kbd>Enter</kbd></button>
+          <button class="p-go">START</button>
         </div>`;
       setImg(p.querySelector<UIElement>(".p-photo"), previewVideo(d.moves[0]));
       p.addEventListener("click", (e) => {
@@ -352,8 +345,10 @@
   let focusSet = false;
   function renderHome() {
     refreshPlan();
-    CARDS = [...program(), MENU_CARD, PLAN_CARD];
-    if (!focusSet) { focus = suggestedDay() - 1; focusSet = true; }
+    // the plan card previews the first move of each day
+    PLAN_CARD.moves = program().map((d) => d.moves[0]);
+    CARDS = [MENU_CARD, PLAN_CARD, ...savedSets().map((x) => ({ n: null, custom: x.name, title: x.name, color: x.color, moves: x.moves.filter((k) => EX[k]) }))];
+    if (!focusSet) { focus = PLAN_INDEX; focusSet = true; }
     focus = Math.min(Math.max(focus, 0), CARDS.length - 1);
     renderStats();
     buildCarousel();
@@ -419,25 +414,24 @@
   const pickFrom = (cands: string[], avoid: Set<string>): string | undefined => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
 
   // ---------- coverage ----------
-  // The Coverage control (1–4) sets which muscles a set should reach: 1 big movers … 3 every muscle, 4 plus stabilizers.
-  // Sets are scored on reaching those targets (as a main or secondary muscle), then on how many are main muscles,
-  // then on variety. If 5 moves can't reach them all, moves are added (up to MAX_SET) until they do.
+  // A set is a base (shuffled or picked by you) plus extra moves from the Coverage slider. The slider asks "how much
+  // of this area do I care to reach?"; MUSCLE_MODEL.fillSteps finds the fewest extra moves that get there.
+  // Coverage = share of the area's muscles + stabilizers reached as a main or secondary muscle, out of what the
+  // area's moves can reach at all (100% = everything reachable).
   const MM = window.MUSCLE_MODEL, STAB = window.STABILIZERS;
-  let coverLevel = Math.min(Math.max(store.get<number>("coverLevel", 2), 1), 4);
-  const BASE_SET = 5, MAX_SET = 10;
+  const BASE_SET = 5;
   // which menu areas' muscles each body area aims at (null = the whole body)
   const AREA_SCOPE: Record<string, string[] | null> = {
     full: null, all: null, favs: null, upper: ["chest", "shoulders", "back", "arms"], arms: ["arms", "shoulders"],
     core: ["core"], legs: ["legs", "butt"], butt: ["butt", "legs"],
   };
   const muscleSets = (set: string[]) => MM.reach(set);
-  // the area's targets at the current level, and the subset the area's moves can actually reach
+  // everything the area aims at (muscles in its scope + all stabilizers)
   function areaTargets(area: string) {
     const scope = area in AREA_SCOPE ? AREA_SCOPE[area] : null;
-    // an area with no muscles at this level (core and arms have no big movers) starts at its own biggest tier
-    for (let lv = coverLevel; lv <= 4; lv++) { const t = MM.targets(lv, scope || undefined); if (t.length) return t; }
-    return [];
+    return MM.targets(scope || undefined);
   }
+  // the part of it the area's moves can actually reach
   function targetsFor(area: string, pool: string[]) {
     const reach = muscleSets(pool).any;
     return areaTargets(area).filter((m) => reach.has(m));
@@ -460,60 +454,87 @@
     const top = Math.max(...cands.map((c) => c.s));
     // the most coverage wins (each muscle is worth 100); among those, anything close to the best is fair game
     const good = cands.filter((c) => c.s >= top - 25);
-    return growSet(area, good[Math.floor(Math.random() * good.length)].set, avoid);
+    return good[Math.floor(Math.random() * good.length)].set;
   }
-  // Add moves until every reachable target is covered (or the set hits MAX_SET). Each added move is the one
-  // that covers the most still-missing targets, preferring main-muscle hits.
-  function growSet(area: string, set: string[], avoid = new Set<string>(), max = MAX_SET): string[] {
-    const pool = poolFor(area), targets = targetsFor(area, pool), out = [...set];
-    while (out.length < max) {
-      const { any } = muscleSets(out);
-      const missing = targets.filter((t) => !any.has(t));
-      if (!missing.length) break;
-      let best: string | null = null, bs = 0;
-      for (const c of shuffle(pool)) {
-        if (out.includes(c)) continue;
-        const r = muscleSets([c]);
-        const s = missing.filter((t) => r.any.has(t)).length * 10 + missing.filter((t) => r.pri.has(t)).length * 3 - (avoid.has(c) ? 5 : 0);
-        if (s > bs) { best = c; bs = s; }
-      }
-      if (!best) break;
-      out.push(best);
-    }
-    return out.length > set.length ? out.sort(byPattern) : out;
+
+  // slider state: target coverage (0–100, remembered), the base set, extras it added, moves you removed
+  // null = the set as built, no moves added or dropped
+  const storedCover = (): number | null => { const v = store.get<number | null>("coverage", null); return v == null ? null : Math.min(Math.max(v, 0), 100); };
+  let menuCover: number | null = storedCover();
+  let menuBase: string[] = [], menuExtra = new Set<string>(), menuExcluded = new Set<string>();
+  let menuSteps: CoverStep[] = [], menuTrims: CoverStep[] = [], menuStart = 0, menuGoal: string[] = [];
+  const menuAreaId = () => { const it = curItem(); return it.kind === "set" ? it.area || "full" : it.id; };
+  // recompute the slider's steps for the current base (call after the base, area or exclusions change)
+  function rebuildSteps() {
+    const area = menuAreaId(), pool = poolFor(area);
+    menuGoal = targetsFor(area, pool);
+    menuStart = MM.coverage(menuBase, menuGoal);
+    menuSteps = MM.fillSteps([menuBase], pool.filter((k) => !menuExcluded.has(k)), menuGoal);
+    menuTrims = MM.trimSteps([menuBase], menuGoal, 3);
+    applyCover();
   }
-  function setCoverLevel(n: number) {
-    n = Math.min(Math.max(n, 1), 4);
-    if (n === coverLevel) { sfx("edge"); return; }
-    const up = n > coverLevel;
-    coverLevel = n;
-    store.set("coverLevel", n);
-    const it = curItem(), area = it.kind === "set" ? it.area || "full" : it.id;
-    // going up adds moves to what's there; going down rebuilds a fresh, smaller set (saved sets are left alone)
-    if (up && menuSet.length) { const before = menuSet.length; menuSet = growSet(area, menuSet); if (menuSet.length !== before) menuDirty = true; }
-    else if (!up && it.kind !== "set" && it.id !== "all") menuSet = buildSet(area);
-    sfx("tick");
-    renderMenu();
+  // base + the fewest extras that reach the slider's target
+  function applyCover() {
+    const shaped = menuCover == null ? [...menuBase] : MM.applySteps([menuBase], menuSteps, menuCover / 100, menuStart, menuTrims)[0];
+    const extras = shaped.filter((k) => !menuBase.includes(k));
+    menuExtra = new Set(extras);
+    menuSet = [...menuBase.filter((k) => shaped.includes(k)), ...extras.sort(byPattern)];
   }
-  // Coverage panel: level control, % bar, and what's missing (split into "add a move" vs "nothing here trains it")
+  // after you edit the list by hand: whatever is left becomes the base; removed or swapped-out moves stay out
+  function settleEdit(dropped?: string) {
+    if (dropped) menuExcluded.add(dropped);
+    // the base keeps moves the slider had dropped (the slider still decides those), loses the one you removed,
+    // and gains anything you added or swapped in
+    menuBase = [...menuBase.filter((k) => k !== dropped), ...menuSet.filter((k) => !menuBase.includes(k) && !menuExtra.has(k))];
+    rebuildSteps();
+  }
+  // a fresh base (area change, shuffle, opening a saved set)
+  function setBase(moves: string[]) {
+    menuBase = [...moves];
+    menuExcluded = new Set();
+    rebuildSteps();
+  }
+  // Coverage panel: slider, % reached, extra moves, what's missing and what nothing here trains
   function renderCoverage(area: string) {
-    const lv = MM.LEVELS[coverLevel - 1];
-    const reachable = new Set(targetsFor(area, poolFor(area)));
-    // stabilizers only count where the area's moves can reach them (no "deep hip" gap on an arms day)
-    const all = areaTargets(area).filter((t) => !t.startsWith("s:") || reachable.has(t));
-    const { any } = muscleSets(menuSet);
-    const hit = all.filter((t) => any.has(t)), miss = all.filter((t) => !any.has(t));
-    const pct = all.length ? Math.round((hit.length / all.length) * 100) : 100;
-    const canAdd = miss.filter((t) => reachable.has(t)), cant = miss.filter((t) => !reachable.has(t));
-    $("coverLevel").innerHTML = MM.LEVELS.map((l) => `<button class="${l.n === coverLevel ? "on" : ""}" data-n="${l.n}" title="${l.blurb}">${l.name}</button>`).join("");
-    $("coverLevel").querySelectorAll<UIElement>("button").forEach((b) => (b.onclick = () => setCoverLevel(+b.dataset.n)));
+    const all = areaTargets(area), goal = new Set(menuGoal);
+    const det = MM.detail(menuSet, menuGoal);
+    const pct = Math.round(MM.coverage(menuSet, menuGoal) * 100);
+    const startPct = Math.round(menuStart * 100);
+    const r = $("coverRange") as unknown as HTMLInputElement;
+    r.disabled = !menuSet.length && !menuSteps.length;
+    r.min = String(Math.floor((menuTrims.length ? menuTrims[menuTrims.length - 1].pct : menuStart) * 100));
+    r.max = String(Math.ceil((menuSteps.length ? menuSteps[menuSteps.length - 1].pct : menuStart) * 100));
+    r.value = String(menuCover ?? startPct);
+    r.style.setProperty("--fill", `${covPos(pct, +r.min, +r.max)}%`);
+    // notches where each extra move lands
+    $("coverTicks").innerHTML = covTicks(menuTrims, menuSteps, +r.min, +r.max);
+    const cant = all.filter((t) => !goal.has(t) && !t.startsWith("s:"));
     $("coverMeter").innerHTML = `
-      <div class="cov-bar"><i style="width:${pct}%"></i></div>
-      <div class="cov-num"><b>${pct}%</b> <span>${hit.length} of ${all.length} ${coverLevel === 4 ? "muscles + stabilizers" : lv.name.toLowerCase()}</span></div>
-      ${canAdd.length ? `<div class="cov-miss">Missing: ${canAdd.map(MM.label).join(" · ")} <button class="hud-btn" id="coverFill">＋ Cover them</button></div>` : ""}
+      <div class="cov-num"><b>${pct}%</b> <span>${det.full.length} of ${menuGoal.length} fully worked${menuExtra.size ? ` · <em>+${menuExtra.size} move${menuExtra.size > 1 ? "s" : ""} for coverage</em>` : menuSet.length < menuBase.length ? ` · <em>${menuBase.length - menuSet.length} fewer, big movers first</em>` : ""}</span></div>
+      ${covLists(det, menuSet.length > 0)}
       ${cant.length ? `<div class="cov-gap">No move ${area === "favs" ? "in your favorites" : area === "full" || area === "all" ? "in the library" : "in this area"} trains: ${cant.map(MM.label).join(" · ")}</div>` : ""}`;
-    if ($("coverFill")) $("coverFill").onclick = () => { menuSet = growSet(area, menuSet, new Set(), menuSet.length + canAdd.length); menuDirty = true; sfx("tick"); renderMenu(); };
   }
+  // notches on a slider track (min…100) where moves get dropped (below) or added (above)
+  function covTicks(trims: CoverStep[], steps: CoverStep[], min: number, max: number): string {
+    return [...trims, ...steps].map((st) => `<i style="left:${covPos(st.pct * 100, min, max)}%"></i>`).join("");
+  }
+  // where a coverage % sits on a track that runs from `min` to `max`
+  const covPos = (pct: number, min: number, max: number) => Math.min(100, Math.max(0, ((pct - min) / Math.max(1, max - min)) * 100));
+  // which targets are only lightly worked, and which aren't reached at all
+  function covLists(det: { light: string[]; none: string[]; work: Map<string, number> }, any: boolean): string {
+    const light = det.light.map((t) => `${MM.label(t)} <small>${Math.round(Math.min(1, det.work.get(t)) * 100)}%</small>`);
+    return (det.light.length ? `<div class="cov-miss"><b>Lightly worked:</b> ${light.join(" · ")}</div>` : "") +
+      (det.none.length ? `<div class="cov-miss"><b>Not reached:</b> ${det.none.map(MM.label).join(" · ")}</div>` : "") +
+      (!det.light.length && !det.none.length && any ? `<div class="cov-miss">Every muscle here gets a proper workout.</div>` : "");
+  }
+  $("coverRange").addEventListener("input", () => {
+    const r = $("coverRange") as unknown as HTMLInputElement, before = menuSet.length;
+    menuCover = +r.value;
+    store.set("coverage", menuCover);
+    applyCover();
+    if (menuSet.length !== before) { if (curItem().kind === "set") menuDirty = true; sfx("tick"); }
+    renderMenu();
+  });
   function candidateSet(area: string, pool: string[], targets: string[], avoid: Set<string>, size: number): string[] {
     if (area === "butt") return buttCandidate(pool, avoid, size);
     // randomized greedy: a random first move, then each next move adds the most coverage
@@ -561,12 +582,14 @@
     if (!force) sfx("move");
     const it = curItem();
     document.documentElement.style.setProperty("--accent", it.color);
-    menuSet = it.kind === "set" ? it.moves.filter((k) => EX[k]) : it.id === "all" ? [] : buildSet(it.id);
+    // a pinned workout opens as saved (no extras until you drag the slider); areas use your usual coverage
+    menuCover = it.kind === "set" ? null : storedCover();
+    setBase(it.kind === "set" ? it.moves.filter((k) => EX[k]) : it.id === "all" ? [] : buildSet(it.id));
     menuDirty = false;
     renderMenu();
   }
   function reshuffle() {
-    menuSet = buildSet(curItem().area || curItem().id, new Set(menuSet));
+    setBase(buildSet(menuAreaId(), new Set(menuSet)));
     menuDirty = true;
     sfx("tick");
     renderMenu();
@@ -579,25 +602,25 @@
       x.moves = [...menuSet];
       store.set("sets", sets);
       menuDirty = false;
-      flash("SET UPDATED");
+      flash("WORKOUT UPDATED");
       renderMenu();
       return;
     }
-    const name = prompt("Name this set", `${it.name.replace("♥ ", "")} set ${sets.filter((x) => x.area === it.id).length + 1}`);
+    const name = prompt("Name this workout", `${it.name.replace("♥ ", "")} workout ${sets.filter((x) => x.area === it.id).length + 1}`);
     if (!name) return;
     sets.push({ id: "s" + Date.now().toString(36), name: name.slice(0, 40), area: it.id, color: it.color, moves: [...menuSet] });
     store.set("sets", sets);
-    flash("SET SAVED");
+    flash("PINNED TO HOME");
     selectArea(AREAS.length + sets.length - 1, true);
   }
   function deleteSet() {
     const it = curItem();
-    if (it.kind !== "set" || !confirm(`Delete "${it.name}"?`)) return;
+    if (it.kind !== "set" || !confirm(`Unpin and delete "${it.name}"?`)) return;
     store.set("sets", savedSets().filter((x) => x.id !== it.id));
     selectArea(0, true);
   }
   function swapOne(j) {
-    const area = curItem().area || curItem().id, cur = menuSet[j], pat = EX[cur].pattern;
+    const area = menuAreaId(), cur = menuSet[j], pat = EX[cur].pattern;
     const pool = poolFor(area).filter((k) => !menuSet.includes(k));
     if (!pool.length) { sfx("edge"); return; }
     // the replacement that keeps the set's coverage best; same movement pattern breaks ties, then random
@@ -605,35 +628,35 @@
     const score = (c: string) => coverScore([...rest, c], targets, new Set()) + (EX[c].pattern === pat ? 8 : 0);
     const cands = shuffle(pool);
     const k = cands.reduce((a, b) => (score(b) > score(a) ? b : a));
-    menuSet[j] = k; menuDirty = true; sfx("tick"); renderMenu();
+    menuSet[j] = k; menuDirty = true; sfx("tick"); settleEdit(cur); renderMenu();
   }
   function renderMenu() {
     const area = curItem(), items = menuItems(), fv = favs();
-    $("areas").innerHTML = items.map((a, i) => `${i === AREAS.length ? '<div class="areas-h">My sets</div>' : ""}
+    $("areas").innerHTML = items.map((a, i) => `${i === AREAS.length ? '<div class="areas-h">Pinned workouts</div>' : ""}
       <button class="area${a.kind === "set" ? " saved" : ""}${i === menuArea ? " on" : ""}" data-i="${i}" style="--c:${a.color}">
-        <b>${a.name}</b><span>${a.kind === "set" ? `${a.moves.length} moves · saved` : a.id === "favs" && !fv.length ? "Tap ♡ on any move to add it" : `${poolFor(a.id).length} moves · ${a.blurb}`}</span>
+        <b>${a.name}</b><span>${a.kind === "set" ? `${a.moves.length} moves · pinned to home` : a.id === "favs" && !fv.length ? "Tap ♡ on any move to add it" : `${poolFor(a.id).length} moves · ${a.blurb}`}</span>
       </button>`).join("");
     $("areas").querySelectorAll<UIElement>(".area").forEach((b) => (b.onclick = () => selectArea(+b.dataset.i)));
     $("setTitle").textContent = area.kind === "set" ? area.name : `${area.name.replace("♥ ", "")} workout`;
     $("setSub").textContent = menuSet.length ? `${menuSet.length} move${menuSet.length > 1 ? "s" : ""} · ${settings.rounds} round${settings.rounds > 1 ? "s" : ""} · ${minutesFor(settings.rounds, menuSet.length)}` : "";
     $("setList").innerHTML = menuSet.map((k, j) => {
       const e = EX[k], v = previewVideo(k);
-      return `<li class="srow">
+      return `<li class="srow${menuExtra.has(k) ? " extra" : ""}">
         <span class="snum">${j + 1}</span>
         <img class="sthumb" alt="" data-k="${k}">
         <div class="sinfo"><b>${e.name}</b><span>${e.reps} · ${dumbbellText(e.dumbbells)} · ${e.primary.map((m) => MUS[m].name).join(", ")}</span></div>
-        <span class="spat">${PATTERN_LABEL[e.pattern] || ""}</span>
+        <span class="spat">${menuExtra.has(k) ? "+ Coverage" : PATTERN_LABEL[e.pattern] || ""}</span>
         <button class="sfav${fv.includes(k) ? " on" : ""}" data-k="${k}" title="Favorite">${fv.includes(k) ? "♥" : "♡"}</button>
         <button class="sswap" data-j="${j}" title="Swap for a similar move">↻</button>
         <button class="sdel" data-j="${j}" title="Remove">✕</button>
       </li>`;
     }).join("");
     $("setList").querySelectorAll<UIElement>(".sswap").forEach((b) => (b.onclick = () => swapOne(+b.dataset.j)));
-    $("setList").querySelectorAll<UIElement>(".sdel").forEach((b) => (b.onclick = () => { menuSet.splice(+b.dataset.j, 1); menuDirty = true; sfx("tick"); renderMenu(); }));
+    $("setList").querySelectorAll<UIElement>(".sdel").forEach((b) => (b.onclick = () => { const [k] = menuSet.splice(+b.dataset.j, 1); menuDirty = true; sfx("tick"); settleEdit(k); renderMenu(); }));
     $("setList").querySelectorAll<UIElement>(".sfav").forEach((b) => (b.onclick = () => { toggleFav(b.dataset.k); sfx("tick"); renderMenu(); }));
-    if (!menuSet.length) $("setList").innerHTML = `<li class="sempty">${area.id === "favs" ? "No favorites yet. Pick any body area and tap ♡ on the moves you like, or press H during a workout." : `Nothing picked yet. <button class="hud-btn" id="emptyAdd">＋ Browse all ${poolFor("all").length} moves <kbd>A</kbd></button>`}</li>`;
+    if (!menuSet.length) $("setList").innerHTML = `<li class="sempty">${area.id === "favs" ? "No favorites yet. Pick any body area and tap ♡ on the moves you like, or press H during a workout." : `Nothing picked yet. <button class="hud-btn" id="emptyAdd">＋ Browse all ${poolFor("all").length} moves</button>`}</li>`;
     if ($("emptyAdd")) $("emptyAdd").onclick = openPicker;
-    $("saveSetBtn").innerHTML = area.kind === "set" ? `✓ Save changes <kbd>S</kbd>` : `♥ Save set <kbd>S</kbd>`;
+    $("saveSetBtn").innerHTML = area.kind === "set" ? `✓ Save changes` : `📌 Pin to home`;
     $("saveSetBtn").disabled = area.kind === "set" ? !menuDirty : !menuSet.length;
     $("delSetBtn").classList.toggle("hidden", area.kind !== "set");
     $("setList").querySelectorAll<UIElement>(".sthumb").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
@@ -642,7 +665,7 @@
     const stab = new Set(menuSet.flatMap((k) => EX[k].stab));
     $("setMap").innerHTML = bodyMap([...pri], [...sec]);
     $("setMuscles").innerHTML = [...pri].map((m) => `<span class="mchip pri">${MUS[m].name}</span>`).join("") + [...sec].map((m) => `<span class="mchip">${MUS[m].name}</span>`).join("") +
-      (coverLevel === 4 && stab.size ? `<div class="mchips-h">Stabilizers</div>` + [...stab].map((s) => `<span class="mchip stab" title="${STAB[s].does}">${STAB[s].name}</span>`).join("") : "");
+      (stab.size ? `<div class="mchips-h">Stabilizers</div>` + [...stab].map((s) => `<span class="mchip stab" title="${STAB[s].does}">${STAB[s].name}</span>`).join("") : "");
     renderCoverage(area.kind === "set" ? area.area || "full" : area.id);
     segmented($("menuRounds"), [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (r) => { settings.rounds = r; save("rounds"); renderMenu(); });
   }
@@ -662,6 +685,7 @@
     const i = menuSet.indexOf(k);
     if (i >= 0) menuSet.splice(i, 1); else menuSet.push(k);
     menuDirty = true; sfx("tick");
+    settleEdit(i >= 0 ? k : undefined);
     renderPicker();
   }
   function renderPicker() {
@@ -701,9 +725,57 @@
   function startMenuSet() {
     if (!menuSet.length) return;
     const a = curItem(), name = a.name.replace("♥ ", "");
-    startSession({ n: null, custom: name, title: a.kind === "set" ? name : `${name} (à la carte)`, color: a.color, moves: [...menuSet] });
+    startSession({ n: null, custom: name, title: a.kind === "set" ? name : `${name} workout`, color: a.color, moves: [...menuSet] });
   }
 
+
+  // ---------- MY PLAN: this week's days, framed together, plus a card to change the plan ----------
+  let pvFocus = 0;
+  function openPlanView() {
+    stopPreview();
+    refreshPlan();
+    const sug = suggestedDay();
+    pvFocus = Math.max(0, sug - 1);
+    show("planview");
+    document.documentElement.style.setProperty("--accent", PLAN_CARD.color);
+    renderPlanView();
+  }
+  function renderPlanView() {
+    const days = program(), sug = suggestedDay(), done = days.filter((d) => doneThisWeek(d.n)).length;
+    $("pvSub").textContent = plan ? `${FOCUS_LABEL[plan.answers.focus]} · ${days.length} days a week · do them in order` : "Classic Days 1–4 · do them in order";
+    $("pvWeekSub").innerHTML = `<b>${done}</b> of ${days.length} done this week`;
+    $("pvWeekBar").style.setProperty("--p", `${(done / days.length) * 100}%`);
+    $("pvDays").innerHTML = days.map((d, i) => {
+      const dn = doneThisWeek(d.n);
+      return `<article class="pv-day${dn ? " done" : ""}${i === pvFocus ? " focused" : ""}" data-i="${i}" style="--c:${d.color}">
+        <div class="pv-art"><img alt="" data-k="${d.moves[0]}"><div class="pv-shade"></div>
+          ${dn ? `<div class="pv-check" title="Done ${fmtDate(dn.date)}">✓</div>` : ""}
+          <div class="pv-top"><span class="pv-n">DAY ${d.n}</span>${dn ? `<span class="pv-when">${fmtDate(dn.date)}</span>` : d.n === sug ? '<span class="pv-next">UP NEXT</span>' : ""}</div>
+          <h2>${d.title.replace(/ \+ /g, "<br>+ ")}</h2>
+        </div>
+        <div class="pv-meta"><span>${d.moves.length} moves</span><span>~${estMinutes(d.moves.length, settings.rounds)} min</span><span>${dumbbellRange(d)}</span></div>
+        <ol class="pv-moves">${d.moves.map((k) => `<li>${EX[k].name}</li>`).join("")}</ol>
+        <button class="pv-go">${dn ? "Do it again" : "Start"}</button>
+      </article>`;
+    }).join("");
+    $("pvDays").querySelectorAll<HTMLImageElement>("img").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
+    $("pvDays").querySelectorAll<UIElement>(".pv-day").forEach((el) => (el.onclick = () => startSession(program()[+el.dataset.i])));
+    $("pvEdit").classList.toggle("focused", pvFocus === days.length);
+    $("pvEdit").innerHTML = `
+      <span class="pv-edit-ic">${plan ? "✎" : "＋"}</span>
+      <b>${plan ? "Edit your plan" : "Build your plan"}</b>
+      <span>${plan ? planLines().map(([k, v]) => `${k}: ${v}`).join("<br>") : "Four quick questions and you get workouts built for you."}</span>`;
+    segmented($("pvRounds"), [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (r) => { settings.rounds = r; save("rounds"); renderPlanView(); });
+  }
+  function pvMove(dir: number) {
+    const n = program().length + 1;
+    pvFocus = (pvFocus + dir + n) % n;
+    sfx("move");
+    renderPlanView();
+  }
+  function pvActivate() { pvFocus === program().length ? openWizard() : startSession(program()[pvFocus]); }
+  $("pvBack").onclick = () => { show("home"); renderHome(); };
+  $("pvEdit").onclick = openWizard;
 
   // ---------- preferences learned from use ----------
   const favs = (): string[] => store.get<string[]>("favs", []);
@@ -789,36 +861,59 @@
     sfx("move");
     renderWizard();
   }
+  // The base plan (no coverage extras) and the steps the Coverage slider can add; wzApply makes the draft from them.
   function wzBuild() {
-    wz.draft = PL.generate({ ...wz.answers, likes: favs(), dislikes: nope() });
+    wz.base = PL.generate({ ...wz.answers, coverage: null, likes: favs(), dislikes: nope() });
+    wz.info = PL.coverInfo(wz.base);
+    wzApply();
   }
-  function closeWizard() { wz = null; show("home"); renderHome(); }
+  function wzApply() {
+    const d: WorkoutPlan = JSON.parse(JSON.stringify(wz.base));
+    d.answers = { ...wz.answers, likes: favs(), dislikes: nope() };
+    wz.draft = PL.applyCoverage(d, wz.info);
+  }
+  function closeWizard() { wz = null; if (plan || history().length) openPlanView(); else { show("home"); renderHome(); } }
   function savePlanFromWizard() {
     plan = wz.draft;
     store.set("planAnswers", wz.answers);
     savePlan();
-    focus = 0; focusSet = true;
+    focus = PLAN_INDEX; focusSet = true;
     wz = null;
-    show("home"); renderHome();
+    openPlanView();
     flash("PLAN SAVED");
   }
   function useClassic() {
     plan = null;
     store.set("plan", null);
-    focus = suggestedDay() - 1; focusSet = true;
+    focus = PLAN_INDEX; focusSet = true;
     wz = null;
-    show("home"); renderHome();
+    openPlanView();
     flash("CLASSIC DAYS 1–4");
   }
-  // One line for the plan summary: how much of the body the whole week reaches, and what it misses.
-  function planCoverage(p: WorkoutPlan): string {
-    const week = p.days.flatMap((x) => x.moves), { any } = MM.reach(week);
-    const mus = MM.targets(3), stab = MM.targets(4).filter((t) => t.startsWith("s:"));
-    const m = mus.filter((t) => any.has(t)).length, st = stab.filter((t) => any.has(t)).length;
-    const miss = [...mus, ...stab].filter((t) => !any.has(t)).map(MM.label);
-    const pct = Math.round(((m + st) / (mus.length + stab.length)) * 100);
-    return `<div class="wz-cov"><div class="cov-bar"><i style="width:${pct}%"></i></div>
-      <span><b>${pct}% coverage</b> · ${m} of ${mus.length} muscles, ${st} of ${stab.length} stabilizers each week${miss.length ? ` · Not reached: ${miss.join(", ")}` : ""}</span></div>`;
+  // Live parts of the plan summary, redrawn while the Coverage slider is dragged (the slider itself stays put).
+  function wzUpdate() {
+    const d = wz.draft, base = wz.base, info = wz.info;
+    const week = d.days.flatMap((x) => x.moves), { pri, any } = MM.reach(week);
+    const sec = [...any].filter((t) => !pri.has(t) && !t.startsWith("s:"));
+    const det = MM.detail(week, info.goal), pct = Math.round(MM.coverage(week, info.goal) * 100);
+    const added = week.length - base.days.flatMap((x) => x.moves).length;
+    const delta = added > 0 ? `+${added} move${added > 1 ? "s" : ""} across the week` : added < 0 ? `${-added} fewer move${added < -1 ? "s" : ""} than usual` : "";
+    $("wzDays").innerHTML = d.days.map((x, i) => `
+      <div class="wz-day" style="--c:${x.color}">
+        <div class="wz-dh"><span>${x.n}</span><b>${x.title}</b><em>~${estMinutes(x.moves.length, settings.rounds)} min</em></div>
+        <ol>${x.moves.map((k, j) => `<li class="${j >= base.days[i].moves.length ? "extra" : ""}">${EX[k].name}</li>`).join("")}</ol>
+      </div>`).join("");
+    $("wzMap").innerHTML = bodyMap([...pri].filter((t) => !t.startsWith("s:")), sec);
+    const r = $("wzRange") as unknown as HTMLInputElement, startPct = Math.round(info.start * 100);
+    r.min = String(Math.floor((info.trims.length ? info.trims[info.trims.length - 1].pct : info.start) * 100));
+    r.max = String(Math.ceil((info.steps.length ? info.steps[info.steps.length - 1].pct : info.start) * 100));
+    r.value = String(wz.answers.coverage ?? startPct);
+    $("wzTicks").innerHTML = covTicks(info.trims, info.steps, +r.min, +r.max);
+    r.style.setProperty("--fill", `${covPos(pct, +r.min, +r.max)}%`);
+    $("wzCovText").innerHTML = `<b>${pct}%</b> <span>${det.full.length} of ${info.goal.length} muscles + stabilizers fully worked each week${delta ? ` · <em>${delta}</em>` : ""}</span>
+      ${covLists(det, true)}
+      ${info.unreachable.length ? `<div class="cov-gap">No move you can do trains: ${info.unreachable.map(MM.label).join(" · ")}</div>` : ""}`;
+    $("wzTitle").textContent = `${d.days.length} workouts, ${Math.min(...d.days.map((x) => x.moves.length)) === Math.max(...d.days.map((x) => x.moves.length)) ? d.days[0].moves.length + " moves each" : Math.min(...d.days.map((x) => x.moves.length)) + "–" + Math.max(...d.days.map((x) => x.moves.length)) + " moves each"}`;
   }
   function renderWizard() {
     const total = QUESTIONS.length;
@@ -831,12 +926,11 @@
           <h1>${q.title}</h1>
           <div class="wz-opts n${q.options.length}">${q.options.map(([v, label, desc], i) => `
             <button class="wz-opt${i === wz.cur ? " cur" : ""}${wz.answers[q.id] === v ? " on" : ""}" data-i="${i}">
-              <kbd>${i + 1}</kbd><b>${label}</b><span>${typeof desc === "function" ? desc(wz.answers) : desc}</span>
+              <b>${label}</b><span>${typeof desc === "function" ? desc(wz.answers) : desc}</span>
             </button>`).join("")}
           </div>
         </div>`;
       $("wzBody").querySelectorAll<UIElement>(".wz-opt").forEach((b) => (b.onclick = () => wzPick(+b.dataset.i)));
-      $("wzKeys").innerHTML = `<span><kbd>◀</kbd><kbd>▶</kbd> Choose</span><span><kbd>Enter</kbd> Next</span><span><kbd>1</kbd>–<kbd>${q.options.length}</kbd> Pick</span><span><kbd>Backspace</kbd> Back</span>`;
       return;
     }
     // summary
@@ -845,26 +939,40 @@
     $("wzBody").innerHTML = `
       <div class="wz-sum">
         <div class="wz-count">Your plan</div>
-        <h1>${d.days.length} workouts, ${a.moves} moves each</h1>
+        <h1 id="wzTitle"></h1>
         <p class="wz-note">${a.focus === "balanced" && a.perWeek === 3 ? `Each day works its own muscles: ${d.days.map((x) => x.title.toLowerCase().replace(" + ", " and ")).join(", then ")}. Together the three cover ${a.dumbbells >= 2 ? "the whole body" : "everything your dumbbells allow"}, and each muscle rests while the others work.`
           : a.focus === "balanced" && a.perWeek <= 2 ? "One lower-body day and one upper-body day. Together they cover the whole body."
           : split ? "Lower-body and upper-body days take turns, so muscles get a day off in between." : "Each workout covers the whole body with different moves."}
           Do them in order, as often as you like. Every week a couple of moves get swapped so it stays fresh.</p>
-        <div class="wz-days">${d.days.map((x) => `
-          <div class="wz-day" style="--c:${x.color}">
-            <div class="wz-dh"><span>${x.n}</span><b>${x.title}</b><em>~${estMinutes(x.moves.length, settings.rounds)} min</em></div>
-            <ol>${x.moves.map((k) => `<li>${EX[k].name}</li>`).join("")}</ol>
-          </div>`).join("")}
+        <div class="wz-main">
+          <div class="wz-days" id="wzDays"></div>
+          <aside class="wz-map"><div id="wzMap"></div></aside>
         </div>
-        ${planCoverage(d)}
+        <div class="wz-cover">
+          <div class="wz-cover-h">Coverage</div>
+          <div class="cov-slider">
+            <input type="range" id="wzRange" min="0" max="100" step="1" aria-label="How much of the body the week should cover">
+            <div class="cov-ticks" id="wzTicks"></div>
+            <div class="cov-ends"><span>Big movers only</span><span>Most coverage</span></div>
+          </div>
+          <div class="cov-num" id="wzCovText"></div>
+        </div>
         <div class="wz-skip"><span>Optional: leave out</span>${SKIPS.map(([f, label]) => `<button class="chip${a.skip.includes(f) ? " on" : ""}" data-f="${f}">${label}</button>`).join("")}</div>
         <div class="wz-actions">
-          <button class="hud-btn" id="wzShuffle">↻ Reshuffle <kbd>R</kbd></button>
-          ${plan || history().length ? `<button class="hud-btn" id="wzClassic">Use classic Days 1–4 <kbd>C</kbd></button>` : ""}
-          <button class="big-btn" id="wzSave">Save plan <kbd>Enter</kbd></button>
+          <button class="hud-btn" id="wzShuffle">↻ Reshuffle</button>
+          ${plan || history().length ? `<button class="hud-btn" id="wzClassic">Use classic Days 1–4</button>` : ""}
+          <button class="big-btn" id="wzSave">Save plan</button>
         </div>
         <p class="wz-learn">After each workout you'll rate how it felt, and ♥ or skip moves. The plan adjusts as you go.</p>
       </div>`;
+    wzUpdate();
+    $("wzRange").addEventListener("input", () => {
+      const before = wz.draft.days.flatMap((x) => x.moves).length;
+      wz.answers.coverage = +($("wzRange") as unknown as HTMLInputElement).value;
+      wzApply();
+      if (wz.draft.days.flatMap((x) => x.moves).length !== before) sfx("tick");
+      wzUpdate();
+    });
     $("wzBody").querySelectorAll<UIElement>(".chip").forEach((b) => (b.onclick = () => {
       const f = b.dataset.f, i = a.skip.indexOf(f);
       i >= 0 ? a.skip.splice(i, 1) : a.skip.push(f);
@@ -873,7 +981,6 @@
     $("wzShuffle").onclick = () => { sfx("tick"); wzBuild(); renderWizard(); };
     $("wzSave").onclick = savePlanFromWizard;
     if ($("wzClassic")) $("wzClassic").onclick = useClassic;
-    $("wzKeys").innerHTML = `<span><kbd>R</kbd> Reshuffle</span><span><kbd>Enter</kbd> Save plan</span><span><kbd>Backspace</kbd> Back</span>`;
   }
   function wizardKey(e) {
     const k = e.key, q = QUESTIONS[wz.step];
@@ -885,22 +992,19 @@
       Enter: () => wzPick(wz.cur), " ": () => wzPick(wz.cur),
       Backspace: () => wzGo(-1), Escape: closeWizard,
     }[k] : {
-      r: () => { sfx("tick"); wzBuild(); renderWizard(); }, R: () => { sfx("tick"); wzBuild(); renderWizard(); },
-      c: () => (plan || history().length) && useClassic(), C: () => (plan || history().length) && useClassic(),
       Enter: savePlanFromWizard, Backspace: () => wzGo(-1), Escape: closeWizard,
     }[k];
     if (act) { e.preventDefault(); act(); return; }
-    if (q && /^[1-9]$/.test(k) && +k <= q.options.length) { e.preventDefault(); wzPick(+k - 1); }
   }
 
   // ---------- after a workout: how did it feel? ----------
   const FEEL = [["easy", "Too easy"], ["right", "Just right"], ["hard", "Too hard"]];
   let feelOffer = null;
   function renderFeel(picked) {
-    $("feelBtns").innerHTML = FEEL.map(([v, label], i) => `<button class="feel-btn${picked === v ? " on" : ""}" data-v="${v}"><kbd>${i + 1}</kbd> ${label}</button>`).join("");
+    $("feelBtns").innerHTML = FEEL.map(([v, label], i) => `<button class="feel-btn${picked === v ? " on" : ""}" data-v="${v}">${label}</button>`).join("");
     $("feelBtns").querySelectorAll<UIElement>(".feel-btn").forEach((b) => (b.onclick = () => rateFeel(b.dataset.v)));
     feelOffer = picked ? offerFor(picked) : null;
-    $("feelTip").innerHTML = feelOffer ? `${feelOffer.text} <button class="hud-btn" id="feelYes">${feelOffer.label} <kbd>Y</kbd></button>` : picked === "right" ? "Nice. We'll keep it right here." : "";
+    $("feelTip").innerHTML = feelOffer ? `${feelOffer.text} <button class="hud-btn" id="feelYes">${feelOffer.label}</button>` : picked === "right" ? "Nice. We'll keep it right here." : "";
     if (feelOffer) $("feelYes").onclick = acceptOffer;
   }
   function rateFeel(v) {
@@ -1143,7 +1247,7 @@
     const key = isRest ? st.next : st.key;
     const e = EX[key];
     $("session").classList.toggle("resting", isRest);
-    $("tDay").textContent = S.day.custom ? `À la carte · ${S.day.custom}` : `${plan ? "Workout" : "Day"} ${S.day.n} · ${S.day.title}`;
+    $("tDay").textContent = S.day.custom ? S.day.custom : `Day ${S.day.n} · ${S.day.title}`;
     $("tRound").textContent = `Round ${st.round} of ${S.rounds}`;
     $("tMove").textContent = `Move ${st.idx + 1} of ${S.day.moves.length}`;
     $("phase").textContent = isRest ? `${st.label} · up next` : "Now";
@@ -1268,8 +1372,8 @@
     $("doneSub").textContent = `${S.rounds} round${S.rounds > 1 ? "s" : ""} of ${S.day.title} in about ${mins} minute${mins > 1 ? "s" : ""}.`;
     const st = streak();
     const nx = program()[suggestedDay() - 1];
-    $("doneNext").textContent = `${st > 1 ? `🔥 ${st}-day streak · ` : ""}Next time: ${plan ? "Workout" : "Day"} ${nx.n} — ${nx.title}`;
-    if (!S.day.custom) focus = suggestedDay() - 1;
+    $("doneNext").textContent = `${st > 1 ? `🔥 ${st}-day streak · ` : ""}Next time: Day ${nx.n} — ${nx.title}`;
+    if (!S.day.custom) focus = PLAN_INDEX;
     renderFeel(null);
     show("done");
   }
@@ -1377,28 +1481,32 @@
 
   // ---------- input ----------
   document.addEventListener("keydown", (e) => {
-    if ((e.target as HTMLElement).tagName === "INPUT" || e.ctrlKey || e.metaKey || e.altKey) return;
+    const tgt = e.target as HTMLInputElement;
+    // text fields keep their keys; a focused slider keeps its arrows but still lets Esc go back
+    if ((tgt.tagName === "INPUT" && (tgt.type !== "range" || e.key !== "Escape")) || e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key;
     if (view === "home") {
       if (welcomeOpen()) {
-        if (k === "Escape" || k === "Enter" || k === "?") { e.preventDefault(); closeWelcome(); }
-        else if (/^[1-4]$/.test(k)) { e.preventDefault(); pickTile(+k - 1); }
+        if (k === "Escape") { e.preventDefault(); closeWelcome(); }
         return;
       }
-      if (k === "?" || k === "/") { e.preventDefault(); openWelcome(); return; }
       if (sheetOpen()) {
-        if (k === "Escape" || k === "s" || k === "S") { e.preventDefault(); toggleSheet(false); }
+        if (k === "Escape") { e.preventDefault(); toggleSheet(false); }
         return;
       }
       const act = {
-        p: openWizard, P: openWizard, c: openCalendar, C: openCalendar,
         ArrowLeft: () => setFocus(focus - 1, -1), ArrowRight: () => setFocus(focus + 1, 1),
-        ArrowUp: () => setRounds(settings.rounds + 1), ArrowDown: () => setRounds(settings.rounds - 1),
         Enter: () => activate(focus), " ": () => activate(focus),
-        s: () => toggleSheet(true), S: () => toggleSheet(true),
       }[k];
       if (act) { e.preventDefault(); act(); }
-      else if (/^[1-9]$/.test(k) && +k <= CARDS.length) { e.preventDefault(); setFocus(+k - 1, 1); }
+      return;
+    }
+    if (view === "planview") {
+      const act = {
+        ArrowLeft: () => pvMove(-1), ArrowRight: () => pvMove(1), Enter: pvActivate, " ": pvActivate,
+        Escape: () => { show("home"); renderHome(); }, Backspace: () => { show("home"); renderHome(); },
+      }[k];
+      if (act) { e.preventDefault(); act(); }
       return;
     }
     if (view === "menu") {
@@ -1408,29 +1516,21 @@
         return;
       }
       const act = {
-        a: openPicker, A: openPicker,
         ArrowUp: () => selectArea(menuArea - 1), ArrowDown: () => selectArea(menuArea + 1),
-        ArrowLeft: () => selectArea(menuArea - 1), ArrowRight: () => selectArea(menuArea + 1),
-        "[": () => setCoverLevel(coverLevel - 1), "]": () => setCoverLevel(coverLevel + 1),
-        "-": () => setCoverLevel(coverLevel - 1), "=": () => setCoverLevel(coverLevel + 1), "+": () => setCoverLevel(coverLevel + 1),
-        r: reshuffle, R: reshuffle, Enter: startMenuSet, " ": startMenuSet, s: saveSet, S: saveSet, Delete: deleteSet,
-        Escape: () => { show("home"); renderHome(); }, Backspace: () => { show("home"); renderHome(); },
+        Escape: () => { show("home"); renderHome(); },
       }[k];
       if (act) { e.preventDefault(); act(); }
-      else if (/^[1-3]$/.test(k)) { e.preventDefault(); settings.rounds = +k; save("rounds"); sfx("tick"); renderMenu(); }
       return;
     }
     if (view === "wizard") { wizardKey(e); return; }
     if (view === "calendar") {
-      const act = { ArrowLeft: () => calShift(-1), ArrowRight: () => calShift(1), t: () => openCalendar(), T: () => openCalendar(),
-        Escape: () => { show("home"); renderHome(); }, Backspace: () => { show("home"); renderHome(); }, c: () => { show("home"); renderHome(); }, C: () => { show("home"); renderHome(); } }[k];
+      const act = { ArrowLeft: () => calShift(-1), ArrowRight: () => calShift(1),
+        Escape: () => { show("home"); renderHome(); }, Backspace: () => { show("home"); renderHome(); } }[k];
       if (act) { e.preventDefault(); act(); }
       return;
     }
     if (view === "done") {
-      if (k === "Enter" || k === "Escape" || k === " ") { e.preventDefault(); show("home"); renderHome(); }
-      else if (/^[1-3]$/.test(k)) { e.preventDefault(); rateFeel(FEEL[+k - 1][0]); }
-      else if (k === "y" || k === "Y") { e.preventDefault(); acceptOffer(); }
+      if (k === "Enter" || k === "Escape") { e.preventDefault(); show("home"); renderHome(); }
       return;
     }
     if (k === " ") {
@@ -1466,7 +1566,6 @@
   $("quitBtn").onclick = quit;
   $("homeBtn").onclick = () => { show("home"); renderHome(); };
   $("settingsBtn").onclick = () => toggleSheet(true);
-  $("planBtn").onclick = openWizard;
   $("calBtn").onclick = openCalendar;
   $("stats").onclick = openCalendar;
   $("calBack").onclick = () => { show("home"); renderHome(); };
@@ -1487,7 +1586,7 @@
       move: "gobletSquat", color: "#e8336b", go: () => startSession(program()[0]) },
     { title: "Build my plan", text: "Four quick taps make a weekly rotation. Rate how it felt, ♥ moves you love, skip ones you don't. It adapts.",
       move: "couchHipThrust", color: PLAN_CARD.color, go: openWizard },
-    { title: "À la carte", text: `Pick Butt, Legs, Core, Arms… and get a balanced set, or browse all ${Object.keys(EX).length} moves and build your own.`,
+    { title: "Build a workout", text: `Pick Butt, Legs, Core, Arms… and get a balanced set, or browse all ${Object.keys(EX).length} moves. Pin the ones you like to the home screen.`,
       move: "fireHydrant", color: MENU_CARD.color, go: openMenu },
     { title: "Progress", text: "A calendar of every workout, day streaks, your weekly goal and how each workout felt.",
       move: "deadBug", color: "#3b82f6", go: openCalendar },
@@ -1498,7 +1597,7 @@
     $("welcomeTiles").innerHTML = TILES.map((t, i) => `
       <button class="wtile" data-i="${i}" style="--c:${t.color}">
         <img alt=""><span class="wtile-shade"></span>
-        <span class="wtile-body"><b><kbd>${i + 1}</kbd> ${t.title}</b><span>${t.text}</span></span>
+        <span class="wtile-body"><b>${t.title}</b><span>${t.text}</span></span>
       </button>`).join("");
     $("welcomeTiles").querySelectorAll<UIElement>(".wtile").forEach((b) => {
       const t = TILES[+b.dataset.i];
