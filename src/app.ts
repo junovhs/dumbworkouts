@@ -1344,8 +1344,8 @@
     renderPause();
     if (player && playerReady) S.paused ? player.pauseVideo() : player.playVideo();
   }
-  function quit() {
-    if (!confirm("Quit this workout?")) return;
+  function quit(sure = false) {
+    if (!sure && !confirm("Quit this workout?")) return;
     endSession();
     show("home");
     renderHome();
@@ -1517,7 +1517,7 @@
       }
       const act = {
         ArrowUp: () => selectArea(menuArea - 1), ArrowDown: () => selectArea(menuArea + 1),
-        Escape: () => { show("home"); renderHome(); },
+        Enter: startMenuSet, Escape: () => { show("home"); renderHome(); },
       }[k];
       if (act) { e.preventDefault(); act(); }
       return;
@@ -1548,6 +1548,77 @@
     };
     if (map[k]) { e.preventDefault(); map[k](); }
   });
+  // ---------- game controllers (Xbox layout: 8BitDo in X-input mode, Xbox, most PC pads) ----------
+  // Polled every animation frame, so a press acts on the very next frame. Buttons feed the same handler as the
+  // keyboard (they dispatch the matching key), so every screen already knows what to do with them.
+  //   D-pad / left stick: move · A: choose / start (pause in a workout) · B: back (previous move in a workout)
+  //   LB / RB: coverage slider down / up (builder and plan); previous / next move in a workout
+  //   Start: pause in a workout, otherwise like A · Y: favorite the move · X: other video · View twice: quit workout
+  const PAD = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, VIEW: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
+  const padHeld = new Map<string, number>();   // control → time it went down (for hold-to-repeat)
+  let padQuitArmed = 0;
+  const pressKey = (key: string) => document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  // what each control does on the current screen
+  function padAction(c: string): (() => void) | null {
+    const inSession = view === "session";
+    const arrows: Record<string, string> = { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" };
+    if (arrows[c]) return () => pressKey(arrows[c]);
+    if (c === "A") return () => pressKey(inSession ? " " : "Enter");
+    if (c === "START") return () => pressKey(inSession ? " " : "Enter");
+    if (c === "B") return () => pressKey(inSession ? "ArrowLeft" : view === "wizard" ? "Backspace" : "Escape");
+    if (c === "LB" || c === "RB") {
+      if (inSession) return () => pressKey(c === "RB" ? "Enter" : "ArrowLeft");
+      if (view === "menu" || (view === "wizard" && $("wzRange"))) return () => nudgeCover(c === "RB" ? 1 : -1);
+      if (view === "home") return () => pressKey(c === "RB" ? "ArrowRight" : "ArrowLeft");
+      return null;
+    }
+    if (inSession && c === "Y") return () => pressKey("h");
+    if (inSession && c === "X") return () => pressKey("v");
+    if (inSession && c === "VIEW") return () => {
+      if (Date.now() < padQuitArmed) { padQuitArmed = 0; quit(true); }
+      else { padQuitArmed = Date.now() + 1500; flash("PRESS VIEW AGAIN TO QUIT"); }
+    };
+    return null;
+  }
+  // move the visible Coverage slider to its next notch (where a move gets added or dropped)
+  function nudgeCover(dir: number) {
+    const r = (view === "menu" ? $("coverRange") : $("wzRange")) as unknown as HTMLInputElement;
+    if (!r || r.disabled) return;
+    const steps = view === "menu" ? [...menuTrims, ...menuSteps] : [...wz.info.trims, ...wz.info.steps];
+    const cur = +r.value, notches = [...new Set([+r.min, +r.max, ...steps.map((st) => Math.round(st.pct * 100))])].sort((a, b) => a - b);
+    const next = dir > 0 ? notches.find((n) => n > cur) : [...notches].reverse().find((n) => n < cur);
+    if (next === undefined) { sfx("edge"); return; }
+    r.value = String(next);
+    r.dispatchEvent(new Event("input"));
+  }
+  function padControls(gp: Gamepad): Set<string> {
+    const on = new Set<string>(), b = (i: number) => !!gp.buttons[i]?.pressed;
+    for (const [name, i] of Object.entries(PAD)) if (b(i)) on.add(name);
+    const x = gp.axes[0] || 0, y = gp.axes[1] || 0;
+    if (b(PAD.UP) || y < -0.6) on.add("up");
+    if (b(PAD.DOWN) || y > 0.6) on.add("down");
+    if (b(PAD.LEFT) || x < -0.6) on.add("left");
+    if (b(PAD.RIGHT) || x > 0.6) on.add("right");
+    ["UP", "DOWN", "LEFT", "RIGHT"].forEach((d) => on.delete(d));
+    return on;
+  }
+  const REPEAT = new Set(["up", "down", "left", "right", "LB", "RB"]);
+  function padTick() {
+    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+    const now = performance.now(), on = new Set<string>();
+    pads.forEach((gp) => padControls(gp).forEach((c) => on.add(c)));
+    for (const c of on) {
+      const t = padHeld.get(c);
+      if (t === undefined) { padHeld.set(c, now); padAction(c)?.(); }
+      // held directions and shoulders repeat after a short pause
+      else if (REPEAT.has(c) && now - t > 380) { padHeld.set(c, now - 380 + 110); padAction(c)?.(); }
+    }
+    for (const c of [...padHeld.keys()]) if (!on.has(c)) padHeld.delete(c);
+  }
+  function padLoop() { padTick(); requestAnimationFrame(padLoop); }
+  window.addEventListener("gamepadconnected", (e) => { flash("🎮 CONTROLLER READY"); try { (e as GamepadEvent).gamepad.vibrationActuator?.playEffect("dual-rumble", { duration: 120, strongMagnitude: 0.3, weakMagnitude: 0.5 }); } catch {} });
+  requestAnimationFrame(padLoop);
+
   const DOUBLE_TAP_MS = 400;
   let lastSpace = 0;
   // Keep keyboard focus out of buttons so Space/Enter always go to our handler.
@@ -1563,7 +1634,7 @@
   $("favBtn").onclick = favCurrent;
   $("nopeBtn").onclick = nopeCurrent;
   $("wzBack").onclick = () => wzGo(-1);
-  $("quitBtn").onclick = quit;
+  $("quitBtn").onclick = () => quit();
   $("homeBtn").onclick = () => { show("home"); renderHome(); };
   $("settingsBtn").onclick = () => toggleSheet(true);
   $("calBtn").onclick = openCalendar;
@@ -1628,6 +1699,6 @@
   window.__workout = {
     get state() { return S; }, get player() { return player; }, get preview() { return preview; }, get focus() { return focus; },
     startSession, next, back, togglePause, setFocus, buildSet, poolFor, openMenu, get menuSet() { return menuSet; },
-    openWizard, openCalendar, get wz() { return wz; }, get plan() { return plan; }, get cards() { return CARDS; },
+    openWizard, openCalendar, padTick, get wz() { return wz; }, get plan() { return plan; }, get cards() { return CARDS; },
   };
 })();
