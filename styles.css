@@ -209,13 +209,28 @@ kbd {
 .mchips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .mchip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; background: rgba(255,255,255,.07); color: var(--muted); }
 .mchip.pri { background: color-mix(in srgb, var(--accent) 30%, transparent); color: #fff; }
+.mchip.stab { background: rgba(255,255,255,.03); border: 1px dashed rgba(255,255,255,.22); }
+.mchips-h { flex-basis: 100%; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.cov-level { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; }
+.cov-level button { font-size: 12px; font-weight: 700; padding: 8px 4px; line-height: 1.15; }
+.cov-meter { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.cov-bar { height: 10px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.cov-bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); transition: width .35s ease; }
+.cov-num b { font: 800 30px/1 var(--display); color: color-mix(in srgb, var(--accent) 55%, white); }
+.cov-num span { font-size: 13px; color: var(--muted); font-weight: 600; }
+.cov-miss, .cov-gap { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.cov-miss .hud-btn { font-size: 13px; padding: 5px 10px; margin-left: 4px; }
+.cov-gap { opacity: .75; font-style: italic; }
+.wz-cov { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 14px; max-width: 900px; }
+.wz-cov span { font-size: 14px; color: var(--muted); }
+.wz-cov b { color: #fff; }
 .menu-keys { justify-self: center; padding: 10px 32px 22px; }
 @media (max-width: 1100px) {
   .menu-body { grid-template-columns: 1fr; }
   .areas { flex-direction: row; flex-wrap: wrap; }
   .area { flex: 1 1 140px; }
   .area.on { transform: none; }
-  .coverage { display: none; }
+  .coverage .cov-works, .coverage #setMap, .coverage #setMuscles { display: none; }
 }
 
 /* ---------------- SESSION ---------------- */

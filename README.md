@@ -22,7 +22,7 @@ During a workout: Space pause/play · Space twice quickly (or Enter) next move �
 Start page: ◀ ▶ choose · Enter start · ▲ ▼ rounds · P my plan · C calendar · S settings. À la carte: ▲ ▼ area · A browse all moves · R shuffle · S save set · Del delete set. "Pick your own" starts empty so you can hand-pick every move.
 After a workout: 1–3 rate how it felt · Y accept the suggested change.
 
-Moves, cues and videos: `src/data.ts` (program days, muscles) and `src/library.ts` (extra moves). Plan generator, difficulty levels and skip tags: `src/plan.ts`.
+Moves, cues and videos: `src/data.ts` (program days) and `src/library.ts` (extra moves). Muscles: `src/muscles.ts` holds the 30 prime movers, 8 stabilizer groups, every move's muscle tags and the coverage math. Plan generator, difficulty levels and skip tags: `src/plan.ts`.
 
 ## TypeScript
 

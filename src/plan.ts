@@ -44,7 +44,7 @@
     splitLegs: { title: "Legs + Hips", color: "#22c38e", slots: [["squat"], ["lunge"], ["side"], ["lunge", "squat"], ["side"], ["squat"]] },
     splitPush: { title: "Chest + Shoulders", color: "#3b82f6", slots: [["push/chest"], ["push/shoulders"], ["arms/triceps"], ["core"], ["push"], ["core"]] },
     // without a pair of dumbbells there are no chest or shoulder moves, so the upper day becomes core + arms
-    splitCore: { title: "Core + Arms", color: "#3b82f6", slots: [["core"], ["arms/triceps"], ["core"], ["arms/biceps"], ["core"], ["kickback/lowerBack"]] },
+    splitCore: { title: "Core + Arms", color: "#3b82f6", slots: [["core"], ["arms/triceps"], ["core"], ["arms/biceps"], ["core"], ["kickback/erectors"]] },
     // with no dumbbells at all there are no upper-body moves, so the days split legs / glutes + core / mixed
     glutesCore: { title: "Glutes + Core", color: "#8a5cf6", slots: [["bridge"], ["core"], ["kickback"], ["core"], ["bridge"], ["kickback"]] },
     splitPull: { title: "Back + Glutes", color: "#8a5cf6", slots: [["hinge"], ["pull"], ["bridge"], ["arms/biceps"], ["pull"], ["kickback"]] },
@@ -70,10 +70,12 @@
   const maxLevel = (a: PlanAnswers): number => ({ new: 1, back: 2, regular: 3 }[a.level] || 2);
 
   // Pick one move for a slot. `used` = already in this workout, `seen` = used elsewhere in the plan (soft avoid).
-  // A pattern spec is "pattern" or "pattern/muscle" (main muscle must match).
+  // A pattern spec is "pattern" or "pattern/muscle", where muscle is a muscle id or a muscle group id
+  // (see muscles.ts) that must be among the move's main muscles.
+  const MUS = window.MUSCLES;
   const fits = (k: string, spec: string): boolean => {
     const [pat, muscle] = spec.split("/");
-    return EX[k].pattern === pat && (!muscle || EX[k].primary.includes(muscle));
+    return EX[k].pattern === pat && (!muscle || EX[k].primary.some((m) => m === muscle || MUS[m].group === muscle));
   };
   function pickSlot(patterns: string[], a: PlanAnswers, used: Set<string>, seen: Map<string, number>, avoid = new Set<string>()): string | null {
     const ok = Object.keys(EX).filter((k) => !used.has(k) && patterns.some((p) => fits(k, p)) && allowed(k, a));

@@ -5,8 +5,11 @@ interface Exercise {
   name: string;
   dumbbells: number;
   reps: string;
-  primary: string[];
-  secondary: string[];
+  /** main and secondary muscles (ids in MUSCLES); filled in by muscles.ts */
+  primary?: string[];
+  secondary?: string[];
+  /** stabilizer groups challenged (ids in STABILIZERS); filled in by muscles.ts */
+  stab?: string[];
   cues: string[];
   video: ExerciseVideo;
   alts: ExerciseVideo[];
@@ -17,7 +20,17 @@ interface Exercise {
   level?: number;
   flags?: string[];
 }
-interface Muscle { name: string; sci: string; regions: string[]; does: string }
+interface Muscle { name: string; sci: string; group: string; tier: number; area: string; regions: string[]; does: string }
+interface Stabilizer { name: string; does: string }
+interface CoverageLevel { n: number; name: string; blurb: string }
+interface MuscleModel {
+  LEVELS: CoverageLevel[];
+  targets(level: number, areas?: string[]): string[];
+  reach(moves: string[]): { pri: Set<string>; any: Set<string> };
+  volume(moves: string[], rounds?: number): Record<string, number>;
+  coverage(moves: string[], targets: string[]): number;
+  label(target: string): string;
+}
 interface WorkoutDay {
   n?: number | null;
   title: string;
@@ -111,6 +124,9 @@ type UIElement = HTMLElement & HTMLImageElement & HTMLInputElement & HTMLButtonE
 interface Window {
   EXERCISES: Record<string, Exercise>;
   MUSCLES: Record<string, Muscle>;
+  MUSCLE_GROUPS: Record<string, string>;
+  STABILIZERS: Record<string, Stabilizer>;
+  MUSCLE_MODEL: MuscleModel;
   DAYS: WorkoutDay[];
   RULES: string[];
   PRESENTER: Record<string, "m" | "f">;

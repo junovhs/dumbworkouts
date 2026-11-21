@@ -166,6 +166,7 @@
         <div class="mlist">
           ${e.primary.map((m) => `<div class="mrow"><b>${MUS[m].name}</b><span>${MUS[m].does}</span></div>`).join("")}
           ${e.secondary.length ? `<div class="malso">Also works: ${e.secondary.map((m) => MUS[m].name).join(" · ")}</div>` : ""}
+          ${e.stab.length ? `<div class="malso">Steadies: ${e.stab.map((x) => window.STABILIZERS[x].name).join(" · ")}</div>` : ""}
         </div>`);
     }
     return cardCache.get(e);
@@ -417,23 +418,29 @@
   // pick one from candidates, preferring ones not in `avoid`
   const pickFrom = (cands: string[], avoid: Set<string>): string | undefined => { const fresh = cands.filter((k) => !avoid.has(k)); const c = shuffle(fresh.length ? fresh : cands); return c[0]; };
 
-  // Muscles each area should light up on the body map. Sets are scored on covering all of them
-  // (worked as a main or secondary muscle), then on how many are main muscles, then on variety.
-  const AREA_TARGETS: Record<string, string[]> = {
-    full: Object.keys(MUS),
-    upper: ["chest", "shoulders", "upperBack", "lats", "rearDelts", "traps", "biceps", "triceps", "forearms"],
-    arms: ["biceps", "triceps", "forearms", "shoulders"],
-    core: ["abs", "obliques", "lowerBack"],
-    legs: ["quads", "hamstrings", "glutes", "adductors", "sideGlutes", "calves"],
-    butt: ["glutes", "sideGlutes", "hamstrings", "adductors", "quads"],
+  // ---------- coverage ----------
+  // The Coverage control (1–4) sets which muscles a set should reach: 1 big movers … 3 every muscle, 4 plus stabilizers.
+  // Sets are scored on reaching those targets (as a main or secondary muscle), then on how many are main muscles,
+  // then on variety. If 5 moves can't reach them all, moves are added (up to MAX_SET) until they do.
+  const MM = window.MUSCLE_MODEL, STAB = window.STABILIZERS;
+  let coverLevel = Math.min(Math.max(store.get<number>("coverLevel", 2), 1), 4);
+  const BASE_SET = 5, MAX_SET = 10;
+  // which menu areas' muscles each body area aims at (null = the whole body)
+  const AREA_SCOPE: Record<string, string[] | null> = {
+    full: null, all: null, favs: null, upper: ["chest", "shoulders", "back", "arms"], arms: ["arms", "shoulders"],
+    core: ["core"], legs: ["legs", "butt"], butt: ["butt", "legs"],
   };
-  const muscleSets = (set: string[]) => {
-    const pri = new Set(set.flatMap((k) => EX[k].primary));
-    return { pri, any: new Set([...pri, ...set.flatMap((k) => EX[k].secondary)]) };
-  };
+  const muscleSets = (set: string[]) => MM.reach(set);
+  // the area's targets at the current level, and the subset the area's moves can actually reach
+  function areaTargets(area: string) {
+    const scope = area in AREA_SCOPE ? AREA_SCOPE[area] : null;
+    // an area with no muscles at this level (core and arms have no big movers) starts at its own biggest tier
+    for (let lv = coverLevel; lv <= 4; lv++) { const t = MM.targets(lv, scope || undefined); if (t.length) return t; }
+    return [];
+  }
   function targetsFor(area: string, pool: string[]) {
     const reach = muscleSets(pool).any;
-    return (AREA_TARGETS[area] || [...reach]).filter((m) => reach.has(m));
+    return areaTargets(area).filter((m) => reach.has(m));
   }
   function coverScore(set: string[], targets: string[], avoid: Set<string>) {
     const { pri, any } = muscleSets(set);
@@ -444,16 +451,68 @@
   const byPattern = (a: string, b: string) => SHOW_ORDER.indexOf(EX[a].pattern) - SHOW_ORDER.indexOf(EX[b].pattern);
 
   // Try many random candidate sets and keep the one that covers the area best (ties keep the first, so shuffles vary).
-  function buildSet(area: string, avoid = new Set<string>(), size = 5) {
+  function buildSet(area: string, avoid = new Set<string>(), size = BASE_SET) {
     const pool = poolFor(area);
     if (pool.length <= size) return [...pool].sort(byPattern);
     const targets = targetsFor(area, pool);
     const cands = Array.from({ length: 150 }, () => candidateSet(area, pool, targets, avoid, size))
       .map((set) => ({ set, s: coverScore(set, targets, avoid) }));
     const top = Math.max(...cands.map((c) => c.s));
-    // full coverage is required (each muscle is worth 100); among those, anything close to the best is fair game
+    // the most coverage wins (each muscle is worth 100); among those, anything close to the best is fair game
     const good = cands.filter((c) => c.s >= top - 25);
-    return good[Math.floor(Math.random() * good.length)].set;
+    return growSet(area, good[Math.floor(Math.random() * good.length)].set, avoid);
+  }
+  // Add moves until every reachable target is covered (or the set hits MAX_SET). Each added move is the one
+  // that covers the most still-missing targets, preferring main-muscle hits.
+  function growSet(area: string, set: string[], avoid = new Set<string>(), max = MAX_SET): string[] {
+    const pool = poolFor(area), targets = targetsFor(area, pool), out = [...set];
+    while (out.length < max) {
+      const { any } = muscleSets(out);
+      const missing = targets.filter((t) => !any.has(t));
+      if (!missing.length) break;
+      let best: string | null = null, bs = 0;
+      for (const c of shuffle(pool)) {
+        if (out.includes(c)) continue;
+        const r = muscleSets([c]);
+        const s = missing.filter((t) => r.any.has(t)).length * 10 + missing.filter((t) => r.pri.has(t)).length * 3 - (avoid.has(c) ? 5 : 0);
+        if (s > bs) { best = c; bs = s; }
+      }
+      if (!best) break;
+      out.push(best);
+    }
+    return out.length > set.length ? out.sort(byPattern) : out;
+  }
+  function setCoverLevel(n: number) {
+    n = Math.min(Math.max(n, 1), 4);
+    if (n === coverLevel) { sfx("edge"); return; }
+    const up = n > coverLevel;
+    coverLevel = n;
+    store.set("coverLevel", n);
+    const it = curItem(), area = it.kind === "set" ? it.area || "full" : it.id;
+    // going up adds moves to what's there; going down rebuilds a fresh, smaller set (saved sets are left alone)
+    if (up && menuSet.length) { const before = menuSet.length; menuSet = growSet(area, menuSet); if (menuSet.length !== before) menuDirty = true; }
+    else if (!up && it.kind !== "set" && it.id !== "all") menuSet = buildSet(area);
+    sfx("tick");
+    renderMenu();
+  }
+  // Coverage panel: level control, % bar, and what's missing (split into "add a move" vs "nothing here trains it")
+  function renderCoverage(area: string) {
+    const lv = MM.LEVELS[coverLevel - 1];
+    const reachable = new Set(targetsFor(area, poolFor(area)));
+    // stabilizers only count where the area's moves can reach them (no "deep hip" gap on an arms day)
+    const all = areaTargets(area).filter((t) => !t.startsWith("s:") || reachable.has(t));
+    const { any } = muscleSets(menuSet);
+    const hit = all.filter((t) => any.has(t)), miss = all.filter((t) => !any.has(t));
+    const pct = all.length ? Math.round((hit.length / all.length) * 100) : 100;
+    const canAdd = miss.filter((t) => reachable.has(t)), cant = miss.filter((t) => !reachable.has(t));
+    $("coverLevel").innerHTML = MM.LEVELS.map((l) => `<button class="${l.n === coverLevel ? "on" : ""}" data-n="${l.n}" title="${l.blurb}">${l.name}</button>`).join("");
+    $("coverLevel").querySelectorAll<UIElement>("button").forEach((b) => (b.onclick = () => setCoverLevel(+b.dataset.n)));
+    $("coverMeter").innerHTML = `
+      <div class="cov-bar"><i style="width:${pct}%"></i></div>
+      <div class="cov-num"><b>${pct}%</b> <span>${hit.length} of ${all.length} ${coverLevel === 4 ? "muscles + stabilizers" : lv.name.toLowerCase()}</span></div>
+      ${canAdd.length ? `<div class="cov-miss">Missing: ${canAdd.map(MM.label).join(" · ")} <button class="hud-btn" id="coverFill">＋ Cover them</button></div>` : ""}
+      ${cant.length ? `<div class="cov-gap">No move ${area === "favs" ? "in your favorites" : area === "full" || area === "all" ? "in the library" : "in this area"} trains: ${cant.map(MM.label).join(" · ")}</div>` : ""}`;
+    if ($("coverFill")) $("coverFill").onclick = () => { menuSet = growSet(area, menuSet, new Set(), menuSet.length + canAdd.length); menuDirty = true; sfx("tick"); renderMenu(); };
   }
   function candidateSet(area: string, pool: string[], targets: string[], avoid: Set<string>, size: number): string[] {
     if (area === "butt") return buttCandidate(pool, avoid, size);
@@ -580,8 +639,11 @@
     $("setList").querySelectorAll<UIElement>(".sthumb").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
     const pri = new Set(menuSet.flatMap((k) => EX[k].primary));
     const sec = new Set(menuSet.flatMap((k) => EX[k].secondary).filter((m) => !pri.has(m)));
+    const stab = new Set(menuSet.flatMap((k) => EX[k].stab));
     $("setMap").innerHTML = bodyMap([...pri], [...sec]);
-    $("setMuscles").innerHTML = [...pri].map((m) => `<span class="mchip pri">${MUS[m].name}</span>`).join("") + [...sec].map((m) => `<span class="mchip">${MUS[m].name}</span>`).join("");
+    $("setMuscles").innerHTML = [...pri].map((m) => `<span class="mchip pri">${MUS[m].name}</span>`).join("") + [...sec].map((m) => `<span class="mchip">${MUS[m].name}</span>`).join("") +
+      (coverLevel === 4 && stab.size ? `<div class="mchips-h">Stabilizers</div>` + [...stab].map((s) => `<span class="mchip stab" title="${STAB[s].does}">${STAB[s].name}</span>`).join("") : "");
+    renderCoverage(area.kind === "set" ? area.area || "full" : area.id);
     segmented($("menuRounds"), [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (r) => { settings.rounds = r; save("rounds"); renderMenu(); });
   }
   // ---------- browse every move ----------
@@ -748,6 +810,16 @@
     show("home"); renderHome();
     flash("CLASSIC DAYS 1–4");
   }
+  // One line for the plan summary: how much of the body the whole week reaches, and what it misses.
+  function planCoverage(p: WorkoutPlan): string {
+    const week = p.days.flatMap((x) => x.moves), { any } = MM.reach(week);
+    const mus = MM.targets(3), stab = MM.targets(4).filter((t) => t.startsWith("s:"));
+    const m = mus.filter((t) => any.has(t)).length, st = stab.filter((t) => any.has(t)).length;
+    const miss = [...mus, ...stab].filter((t) => !any.has(t)).map(MM.label);
+    const pct = Math.round(((m + st) / (mus.length + stab.length)) * 100);
+    return `<div class="wz-cov"><div class="cov-bar"><i style="width:${pct}%"></i></div>
+      <span><b>${pct}% coverage</b> · ${m} of ${mus.length} muscles, ${st} of ${stab.length} stabilizers each week${miss.length ? ` · Not reached: ${miss.join(", ")}` : ""}</span></div>`;
+  }
   function renderWizard() {
     const total = QUESTIONS.length;
     $("wzPips").innerHTML = Array.from({ length: total + 1 }, (_, i) => `<span class="${i < wz.step ? "done" : i === wz.step ? "now" : ""}"></span>`).join("");
@@ -784,6 +856,7 @@
             <ol>${x.moves.map((k) => `<li>${EX[k].name}</li>`).join("")}</ol>
           </div>`).join("")}
         </div>
+        ${planCoverage(d)}
         <div class="wz-skip"><span>Optional: leave out</span>${SKIPS.map(([f, label]) => `<button class="chip${a.skip.includes(f) ? " on" : ""}" data-f="${f}">${label}</button>`).join("")}</div>
         <div class="wz-actions">
           <button class="hud-btn" id="wzShuffle">↻ Reshuffle <kbd>R</kbd></button>
@@ -1338,6 +1411,8 @@
         a: openPicker, A: openPicker,
         ArrowUp: () => selectArea(menuArea - 1), ArrowDown: () => selectArea(menuArea + 1),
         ArrowLeft: () => selectArea(menuArea - 1), ArrowRight: () => selectArea(menuArea + 1),
+        "[": () => setCoverLevel(coverLevel - 1), "]": () => setCoverLevel(coverLevel + 1),
+        "-": () => setCoverLevel(coverLevel - 1), "=": () => setCoverLevel(coverLevel + 1), "+": () => setCoverLevel(coverLevel + 1),
         r: reshuffle, R: reshuffle, Enter: startMenuSet, " ": startMenuSet, s: saveSet, S: saveSet, Delete: deleteSet,
         Escape: () => { show("home"); renderHome(); }, Backspace: () => { show("home"); renderHome(); },
       }[k];
