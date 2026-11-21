@@ -677,7 +677,7 @@
   }
 
   // ---------- SETUP WIZARD: four one-tap questions ----------
-  const QUESTIONS: Array<{ id: string; title: string; options: Array<[string | number, string, string]> }> = [
+  const QUESTIONS: Array<{ id: string; title: string; options: Array<[string | number, string, string | ((a: PlanAnswers) => string)]> }> = [
     { id: "level", title: "How much have you lifted before?", options: [
       ["new", "Brand new", "Simple moves while you learn the form"],
       ["back", "Getting back into it", "Some experience, a bit rusty"],
@@ -688,7 +688,8 @@
       ["lower", "Legs & butt", "Lower body first, some upper"],
       ["upper", "Upper body", "Arms, shoulders, back and core"]] },
     { id: "perWeek", title: "How many days a week?", options: [
-      [2, "2 days", "Two full-body workouts"], [3, "3 days", "Three different full-body workouts"],
+      [2, "2 days", (a) => (a.focus === "balanced" ? "Lower body one day, upper body the other" : "Two workouts, your focus first")],
+      [3, "3 days", (a) => (a.focus === "balanced" ? "Each day its own muscles: legs, chest & shoulders, back & glutes" : "Three different workouts")],
       [4, "4 days", "Lower and upper days take turns"], [5, "5+ days", "A longer rotation, muscles still get rest"]] },
     { id: "dumbbells", title: "What dumbbells do you have?", options: [
       [2, "A pair", "Two dumbbells (any weight)"], [1, "Just one", "We'll stick to one-dumbbell moves"], [0, "None yet", "Body-weight moves only"]] },
@@ -758,7 +759,7 @@
           <h1>${q.title}</h1>
           <div class="wz-opts n${q.options.length}">${q.options.map(([v, label, desc], i) => `
             <button class="wz-opt${i === wz.cur ? " cur" : ""}${wz.answers[q.id] === v ? " on" : ""}" data-i="${i}">
-              <kbd>${i + 1}</kbd><b>${label}</b><span>${desc}</span>
+              <kbd>${i + 1}</kbd><b>${label}</b><span>${typeof desc === "function" ? desc(wz.answers) : desc}</span>
             </button>`).join("")}
           </div>
         </div>`;
@@ -773,7 +774,9 @@
       <div class="wz-sum">
         <div class="wz-count">Your plan</div>
         <h1>${d.days.length} workouts, ${a.moves} moves each</h1>
-        <p class="wz-note">${split ? "Lower-body and upper-body days take turns, so muscles get a day off in between." : "Each workout covers the whole body with different moves."}
+        <p class="wz-note">${a.focus === "balanced" && a.perWeek === 3 ? `Each day works its own muscles: ${d.days.map((x) => x.title.toLowerCase().replace(" + ", " and ")).join(", then ")}. Together the three cover ${a.dumbbells >= 2 ? "the whole body" : "everything your dumbbells allow"}, and each muscle rests while the others work.`
+          : a.focus === "balanced" && a.perWeek <= 2 ? "One lower-body day and one upper-body day. Together they cover the whole body."
+          : split ? "Lower-body and upper-body days take turns, so muscles get a day off in between." : "Each workout covers the whole body with different moves."}
           Do them in order, as often as you like. Every week a couple of moves get swapped so it stays fresh.</p>
         <div class="wz-days">${d.days.map((x) => `
           <div class="wz-day" style="--c:${x.color}">

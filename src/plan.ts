@@ -39,10 +39,19 @@
     upper:  { title: "Upper Body", color: "#8a5cf6", slots: [["push"], ["pull"], ["push"], ["pull"], ["arms"], ["core"]] },
     upper2: { title: "Arms + Core", color: "#3b82f6", slots: [["pull"], ["arms"], ["push"], ["core"], ["arms"], ["core"]] },
     lowerCore: { title: "Lower + Core", color: "#14a39a", slots: [["bridge"], ["core"], ["squat", "lunge"], ["core"], ["side", "kickback"], ["hinge"]] },
+    // Balanced 3-day split: each day owns its own muscles, the three together cover the whole body.
+    // A slot entry "pattern/muscle" only accepts moves of that pattern whose main muscles include that muscle.
+    splitLegs: { title: "Legs + Hips", color: "#22c38e", slots: [["squat"], ["lunge"], ["side"], ["lunge", "squat"], ["side"], ["squat"]] },
+    splitPush: { title: "Chest + Shoulders", color: "#3b82f6", slots: [["push/chest"], ["push/shoulders"], ["arms/triceps"], ["core"], ["push"], ["core"]] },
+    // without a pair of dumbbells there are no chest or shoulder moves, so the upper day becomes core + arms
+    splitCore: { title: "Core + Arms", color: "#3b82f6", slots: [["core"], ["arms/triceps"], ["core"], ["arms/biceps"], ["core"], ["kickback/lowerBack"]] },
+    // with no dumbbells at all there are no upper-body moves, so the days split legs / glutes + core / mixed
+    glutesCore: { title: "Glutes + Core", color: "#8a5cf6", slots: [["bridge"], ["core"], ["kickback"], ["core"], ["bridge"], ["kickback"]] },
+    splitPull: { title: "Back + Glutes", color: "#8a5cf6", slots: [["hinge"], ["pull"], ["bridge"], ["arms/biceps"], ["pull"], ["kickback"]] },
   };
   // Rotations per focus. With 4+ days, lower and upper alternate so the same muscles get a rest day between.
   const ROTATIONS: Record<PlanFocus, (n: number) => string[]> = {
-    balanced: (n) => (n <= 3 ? ["fullA", "fullB", "fullC"] : ["butt", "upper", "legs", "upper2", "fullA", "lowerCore"]),
+    balanced: (n) => (n <= 2 ? ["legs", "upper"] : n === 3 ? ["splitLegs", "splitPush", "splitPull"] : ["butt", "upper", "legs", "upper2", "fullA", "lowerCore"]),
     booty:    (n) => (n <= 3 ? ["butt", "fullA", "butt2"] : ["butt", "upper", "butt2", "lowerCore", "butt", "upper2"]),
     lower:    (n) => (n <= 3 ? ["legs", "butt", "fullB"] : ["legs", "upper", "butt", "lowerCore", "butt2", "upper2"]),
     upper:    (n) => (n <= 3 ? ["upper", "fullA", "upper2"] : ["upper", "legs", "upper2", "fullB", "upper", "butt"]),
@@ -61,8 +70,13 @@
   const maxLevel = (a: PlanAnswers): number => ({ new: 1, back: 2, regular: 3 }[a.level] || 2);
 
   // Pick one move for a slot. `used` = already in this workout, `seen` = used elsewhere in the plan (soft avoid).
+  // A pattern spec is "pattern" or "pattern/muscle" (main muscle must match).
+  const fits = (k: string, spec: string): boolean => {
+    const [pat, muscle] = spec.split("/");
+    return EX[k].pattern === pat && (!muscle || EX[k].primary.includes(muscle));
+  };
   function pickSlot(patterns: string[], a: PlanAnswers, used: Set<string>, seen: Map<string, number>, avoid = new Set<string>()): string | null {
-    const ok = Object.keys(EX).filter((k) => !used.has(k) && patterns.includes(EX[k].pattern) && allowed(k, a));
+    const ok = Object.keys(EX).filter((k) => !used.has(k) && patterns.some((p) => fits(k, p)) && allowed(k, a));
     if (!ok.length) return null;
     const lvl = maxLevel(a);
     const havePat = new Set([...used].map((x) => EX[x].pattern));
@@ -79,9 +93,12 @@
       const k = pickSlot(pats, a, used, seen, avoid);
       if (k) { used.add(k); moves.push(k); seen.set(k, (seen.get(k) || 0) + 1); }
     }
-    // a template with no allowed move for a slot (say upper body with no dumbbells) gets topped up from any area it allows
+    // a slot with no allowed move (say no dumbbells, or floor moves left out) is topped up from the day's own
+    // patterns first, then from anything allowed
+    const own = [...new Set(tpl.slots.flat())];
+    const any = [...new Set(Object.values(EX).map((e) => e.pattern))];
     while (moves.length < a.moves) {
-      const k = pickSlot([...new Set(Object.values(EX).map((e) => e.pattern))], a, used, seen, avoid);
+      const k = pickSlot(own, a, used, seen, avoid) || pickSlot(any, a, used, seen, avoid);
       if (!k) break;
       used.add(k); moves.push(k); seen.set(k, (seen.get(k) || 0) + 1);
     }
@@ -90,7 +107,11 @@
 
   function rotationFor(a: PlanAnswers): string[] {
     const n = Math.min(Math.max(a.perWeek || 3, 2), 6);
-    return ROTATIONS[a.focus](n).slice(0, n);
+    const r = ROTATIONS[a.focus](n).slice(0, n);
+    if (r.includes("splitPush") && a.dumbbells < 2) {
+      return a.dumbbells < 1 ? ["splitLegs", "glutesCore", "fullA"] : r.map((t) => (t === "splitPush" ? "splitCore" : t));
+    }
+    return r;
   }
 
   function generate(a: PlanAnswers): WorkoutPlan {
@@ -118,7 +139,9 @@
     for (const d of plan.days) {
       for (const j of shuffle(d.moves.map((_, j) => j)).slice(0, 2)) {
         const used = new Set(d.moves);
-        const k = pickSlot([EX[d.moves[j]].pattern], plan.answers, used, new Map(), new Set());
+        // same pattern and same main muscles, so a split day keeps its focus (a triceps move stays a triceps move)
+        const old = EX[d.moves[j]];
+        const k = pickSlot(old.primary.map((m) => old.pattern + "/" + m), plan.answers, used, new Map(), new Set());
         if (k) d.moves[j] = k;
       }
     }
