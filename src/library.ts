@@ -412,6 +412,12 @@
       video: V("DVgnQqN-L3E"), alts: [V("UA7Fud_5WWg", "wide")],
       cues: ["Dumbbell held against the outer thigh", "Hold a wall, stand tall", "Lift the leg out to the side, slow down"],
     },
+    dbDonkeyKick: {
+      name: "Dumbbell Donkey Kick", dumbbells: 1, reps: "12 reps each side", pattern: "kickback",
+      video: V("hRPTy0HI-CE"), alts: [V("wISLdt3NhGU"), V("5F6Ajo9oPMo", "wide"), V("a8SIoaboIts", "wide")],
+      cues: ["On all fours, light dumbbell tucked behind one knee", "Squeeze calf to hamstring to hold it", "Drive the heel to the ceiling, back stays flat"],
+      tip: "A towel behind the knee keeps the dumbbell from digging in",
+    },
   };
   Object.assign(window.EXERCISES, MORE);
 

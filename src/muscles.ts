@@ -151,6 +151,7 @@
     lateralStepUp: "gluteMed gluteMax vasti | adductors | deepHip footAnkle grip",
     dbFireHydrant: "gluteMed | gluteMax abs | deepHip deepCore scapular",
     dbStandingAbduction: "gluteMed | obliques | deepHip footAnkle",
+    dbDonkeyKick: "gluteMax | hamsHip abs | deepCore scapular",
   };
   const words = (s: string) => s.trim().split(/\s+/).filter(Boolean);
   for (const [k, e] of Object.entries(window.EXERCISES)) {
