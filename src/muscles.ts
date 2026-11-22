@@ -146,6 +146,11 @@
     singleLegCalfRaise: "gastrocnemius | soleus | footAnkle deepHip grip",
     bentKneeCalfRaise: "soleus | gastrocnemius | footAnkle grip",
     dbTibRaise: "tibialis | | footAnkle",
+    dbSideLyingAbduction: "gluteMed | gluteMax | deepHip",
+    dbClamshell: "gluteMed | gluteMax | deepHip",
+    lateralStepUp: "gluteMed gluteMax vasti | adductors | deepHip footAnkle grip",
+    dbFireHydrant: "gluteMed | gluteMax abs | deepHip deepCore scapular",
+    dbStandingAbduction: "gluteMed | obliques | deepHip footAnkle",
   };
   const words = (s: string) => s.trim().split(/\s+/).filter(Boolean);
   for (const [k, e] of Object.entries(window.EXERCISES)) {

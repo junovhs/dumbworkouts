@@ -440,7 +440,7 @@
     const { pri, any } = muscleSets(set);
     return targets.filter((m) => any.has(m)).length * 100 + targets.filter((m) => pri.has(m)).length * 10 +
       new Set(set.map((k) => EX[k].pattern)).size * 4 - set.filter((k) => avoid.has(k)).length * 15 -
-      set.filter((k) => EX[k].dumbbells === 0).length * 6;   // dumbbell moves first; no-weight ones break ties
+      set.filter((k) => EX[k].dumbbells === 0).length * 12;  // dumbbell moves first; a no-weight one must earn its place
   }
   const SHOW_ORDER = ["squat", "lunge", "hinge", "bridge", "legiso", "push", "pull", "arms", "kickback", "side", "calf", "core", "neck"];
   const byPattern = (a: string, b: string) => SHOW_ORDER.indexOf(EX[a].pattern) - SHOW_ORDER.indexOf(EX[b].pattern);
@@ -555,7 +555,10 @@
   function buttCandidate(pool: string[], avoid: Set<string>, size: number) {
     const used = new Set();
     const take = (filter) => {
-      const k = pickFrom(pool.filter((x) => !used.has(x) && filter(EX[x])), avoid);
+      const cands = pool.filter((x) => !used.has(x) && filter(EX[x]));
+      // dumbbell versions first; a no-weight move only now and then for variety, or when it's all there is
+      const db = cands.filter((x) => EX[x].dumbbells > 0);
+      const k = pickFrom(db.length && Math.random() < 0.8 ? db : cands, avoid);
       if (k) used.add(k);
       return k;
     };

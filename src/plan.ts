@@ -12,20 +12,20 @@
     "tricepsExtension", "suitcaseMarch", "marchingBridge", "dumbbellDeadlift", "bentOverRow", "floorFly", "russianTwist",
     "frontRaise", "shrug", "proneYRaise", "bicepsCurl", "reverseCurl", "wristCurl", "kickback", "plank", "kneeTuck", "superman",
     "farmersCarry", "calfRaise", "seatedCalfRaise", "tibialisRaise", "legCurl", "legExtension", "neckIso",
-    "dragCurl", "bentKneeCalfRaise", "dbTibRaise"];
+    "dragCurl", "bentKneeCalfRaise", "dbTibRaise", "dbSideLyingAbduction", "dbClamshell", "dbFireHydrant", "dbStandingAbduction"];
   const LEVEL3 = ["jumpSquat", "bulgarianSplitSquat", "skaterSquat", "singleLegBoxSquat", "cossackSquat", "singleLegHipThrust",
     "sidePlankClam", "singleLegRdl", "walkingLunge", "declinePushUp", "pikePushUp", "renegadeRow", "sissySquat"];
   // things people may want to leave out
   const FLAGS: Record<string, string[]> = {
     jump: ["jumpSquat"],
-    kneel: ["birdDog", "kneelingSquat", "fireHydrant", "donkeyKick", "rainbowKick"],
+    kneel: ["birdDog", "kneelingSquat", "fireHydrant", "donkeyKick", "rainbowKick", "dbFireHydrant"],
     floor: ["gluteBridge", "floorPress", "floorFly", "deadBug", "singleLegBridge", "frogPump", "marchingBridge", "elevatedBridge",
       "clamshell", "sideLyingLegRaise", "sidePlankClam", "proneLegLift", "russianTwist", "birdDog", "donkeyKick", "fireHydrant", "rainbowKick",
-      "pullover", "proneYRaise", "skullCrusher", "plank", "legRaise", "superman", "sliderCurl", "legCurl", "neckCurl", "reverseGripPress"],
+      "pullover", "proneYRaise", "skullCrusher", "plank", "legRaise", "superman", "sliderCurl", "legCurl", "neckCurl", "reverseGripPress", "dbSideLyingAbduction", "dbClamshell", "dbFireHydrant"],
     lunge: ["reverseLunge", "splitSquat", "bulgarianSplitSquat", "curtsyLunge", "lateralLunge", "walkingLunge", "lungeKneeDrive",
-      "skaterSquat", "singleLegBoxSquat", "cossackSquat", "stepUp"],
+      "skaterSquat", "singleLegBoxSquat", "cossackSquat", "stepUp", "lateralStepUp"],
     overhead: ["overheadPress", "tricepsExtension", "pullover", "pikePushUp"],
-    balance: ["singleLegCalfRaise", "singleLegRdl", "skaterSquat", "singleLegBoxSquat", "bStanceRdl", "standingKickback", "standingAbduction", "rainbowKick"],
+    balance: ["dbStandingAbduction", "singleLegCalfRaise", "singleLegRdl", "skaterSquat", "singleLegBoxSquat", "bStanceRdl", "standingKickback", "standingAbduction", "rainbowKick"],
   };
   for (const [k, e] of Object.entries(EX)) {
     e.level = LEVEL1.includes(k) ? 1 : LEVEL3.includes(k) ? 3 : 2;

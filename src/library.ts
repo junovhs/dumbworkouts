@@ -386,6 +386,32 @@
       video: V("xs7wTPl28CE", "wide"), alts: [V("qjKcWZB_eoA", "wide"), V("CF8Kbm44uK4", "wide"), V("gO-KnFIDmLY", "wide")],
       cues: ["Sit high, light dumbbell on your toes or between the feet", "Pull the toes up toward the shins", "Slow on the way down"],
     },
+    // dumbbell side-glute moves, so the Butt area isn't mostly bodyweight
+    dbSideLyingAbduction: {
+      name: "Side-Lying Dumbbell Abduction", dumbbells: 1, reps: "12 reps each side", pattern: "side",
+      video: V("UoUInjT2ONg", "wide"), alts: [V("0vjhpmOwn7w"), V("2NhJ2IaueOY", "wide"), V("KmPjkuRJye8", "wide")],
+      cues: ["Lie on your side, dumbbell resting on the top thigh", "Lift the straight top leg, toes slightly down", "Lower slowly, hips stacked"],
+    },
+    dbClamshell: {
+      name: "Dumbbell Clamshell", dumbbells: 1, reps: "12–15 reps each side", pattern: "side",
+      video: V("hz1m_A7dbX0", "wide"), alts: [V("rtsyUywx2tg", "wide"), V("651XHC0gAlo")],
+      cues: ["Side-lying, knees bent, dumbbell on the top knee", "Feet together, open the top knee", "Hips don't roll back"],
+    },
+    lateralStepUp: {
+      name: "Lateral Step-Up", dumbbells: 2, reps: "8–10 reps each leg", pattern: "lunge",
+      video: V("4J6iGO40qWs", "wide"), alts: [V("r_Mgqaj1n34", "wide"), V("UhkFGSll0Fc", "wide"), V("IRwRTv35FTg", "wide")],
+      cues: ["Stand beside a sturdy step or stair", "Push through the top foot to stand up", "Knee tracks over the toes, lower slowly"],
+    },
+    dbFireHydrant: {
+      name: "Dumbbell Fire Hydrant", dumbbells: 1, reps: "12 reps each side", pattern: "side",
+      video: V("qneEYavenRM"), alts: [V("hjMEwbXhya4", "wide"), V("hdw6-OI6WUU", "wide")],
+      cues: ["On all fours, dumbbell tucked behind the knee", "Lift the knee out to the side", "Keep the hips level"],
+    },
+    dbStandingAbduction: {
+      name: "Standing Dumbbell Abduction", dumbbells: 1, reps: "12 reps each side", pattern: "side",
+      video: V("DVgnQqN-L3E"), alts: [V("UA7Fud_5WWg", "wide")],
+      cues: ["Dumbbell held against the outer thigh", "Hold a wall, stand tall", "Lift the leg out to the side, slow down"],
+    },
   };
   Object.assign(window.EXERCISES, MORE);
 
