@@ -202,6 +202,161 @@
   };
 
   Object.assign(window.EXERCISES, NEW);
+  // ---------- filling the muscle gaps: upper body without a bench, arms, calves, shins, hamstring curls, neck ----------
+  // Every muscle in muscles.ts now has at least two moves where it is a main muscle, and the upper body has
+  // no-weight options (push-ups, pike push-ups, dips, Y raises).
+  const MORE: Record<string, Exercise> = {
+    // push
+    pushUp: {
+      name: "Push-Up", dumbbells: 0, reps: "8–12 reps", pattern: "push",
+      video: V("zUymek3A64A"), alts: [V("HHRDXEG1YCU"), V("-Oa88QNL1bc"), V("xyBTdZglfrY"), V("s1X8e4JFdbE", "wide")],
+      cues: ["Hands a bit wider than shoulders", "Body straight from head to heels", "Elbows about 45° from your sides"],
+      tip: "Too hard? Hands on the couch or a wall",
+    },
+    declinePushUp: {
+      name: "Feet-Elevated Push-Up", dumbbells: 0, reps: "6–10 reps", pattern: "push",
+      video: V("x3XztsyxHp4"), alts: [V("4aUUcfwyfE0", "wide"), V("VCfB2oUZzAA", "wide")],
+      cues: ["Feet up on the couch or a step", "Brace so the hips don't sag", "Lower your chest, not your face"],
+    },
+    pikePushUp: {
+      name: "Pike Push-Up", dumbbells: 0, reps: "6–10 reps", pattern: "push",
+      video: V("rWnpH-RGdmA"), alts: [V("shEnAXgc9y4"), V("0cT6ug3WVn4"), V("RmKUhj62_9c")],
+      cues: ["Hips high, upside-down V", "Lower the top of your head toward the floor", "Press back up through the shoulders"],
+    },
+    uprightRow: {
+      name: "Upright Row", dumbbells: 2, reps: "10–12 reps", pattern: "push",
+      video: V("g-Qn4yA0EB0"), alts: [V("CgAdfBs9JfA"), V("dkKwDrEcACU"), V("9caDgnuHh3U")],
+      cues: ["Lead with the elbows", "Pull to chest height, no higher", "Dumbbells stay close to the body"],
+    },
+    frontRaise: {
+      name: "Front Raise", dumbbells: 1, reps: "10–12 reps", pattern: "push",
+      video: V("sOcYlBI85hc", "wide"), alts: [V("zHdB9-RGhRQ", "wide"), V("2oSVPyjO2nc", "wide"), V("iWeMzRCdj7o", "wide")],
+      cues: ["One dumbbell in both hands, or one in each", "Raise to shoulder height", "No swinging, lower slowly"],
+    },
+    // pull
+    pullover: {
+      name: "Floor Pullover", dumbbells: 1, reps: "10–12 reps", pattern: "pull",
+      video: V("fUDUiefmvRo"), alts: [V("qALakTR1nRI", "wide"), V("tM-RjVia9AY", "wide")],
+      cues: ["Lie on your back, one dumbbell in both hands", "Arms almost straight, lower behind your head", "Pull it back over your chest"],
+    },
+    renegadeRow: {
+      name: "Renegade Row", dumbbells: 2, reps: "6–8 reps each side", pattern: "pull",
+      video: V("_4anOEYFxkY"), alts: [V("IuXWhgTUDUY"), V("YUMXGLL2IKE"), V("0Bh3oKgRsa8")],
+      cues: ["Plank on the dumbbells, feet wide", "Row one to your hip", "Hips stay level, no twisting"],
+    },
+    proneYRaise: {
+      name: "Prone Y Raise", dumbbells: 0, reps: "10–12 reps", pattern: "pull",
+      video: V("dkPt_8o5qX0"), alts: [V("bCt9zE64Sdk"), V("QxZoPYmBFlg"), V("w1AWGKubE5U", "wide")],
+      cues: ["Lie face down, arms in a Y", "Thumbs up, lift the arms", "Shoulder blades down and back"],
+    },
+    shrug: {
+      name: "Dumbbell Shrug", dumbbells: 2, reps: "12–15 reps", pattern: "pull",
+      video: V("zrs4FLeF_-4"), alts: [V("j2-RccWDhDo"), V("xiLT85G_GuU", "wide"), V("RLHxN6hq8NA", "wide")],
+      cues: ["Dumbbells at your sides", "Shoulders straight up to the ears", "Pause, then lower slowly"],
+    },
+    // arms
+    bicepsCurl: {
+      name: "Biceps Curl", dumbbells: 2, reps: "10–12 reps", pattern: "arms",
+      video: V("MKWBV29S6c0"), alts: [V("ykJmrZ5v0Oo", "wide"), V("6DeLZ6cbgWQ", "wide")],
+      cues: ["Palms up, elbows by your sides", "Upper arms stay still", "Squeeze at the top, lower slowly"],
+    },
+    reverseCurl: {
+      name: "Reverse Curl", dumbbells: 2, reps: "10–12 reps", pattern: "arms",
+      video: V("KakQSkPr1YQ"), alts: [V("_xCCJi25Ei8", "wide"), V("CIGPx1bx0Hs", "wide")],
+      cues: ["Palms facing down", "Curl with the elbows tucked", "Wrists stay straight"],
+    },
+    wristCurl: {
+      name: "Wrist Curl", dumbbells: 1, reps: "15 reps each side", pattern: "arms",
+      video: V("M8TpHw5aYgA"), alts: [V("kEXbp67nJDc", "wide"), V("CyUPGYlL2D4", "wide"), V("xENVg7RX_O8")],
+      cues: ["Forearm on your thigh, wrist past the knee", "Curl the dumbbell up with the wrist only", "Full stretch at the bottom"],
+    },
+    skullCrusher: {
+      name: "Floor Skull Crusher", dumbbells: 2, reps: "10–12 reps", pattern: "arms",
+      video: V("dXcA5PDXDq4"), alts: [V("sMJpkpCpEXw"), V("W7j2dnr5lHs", "wide"), V("Dzko6yfu_2w", "wide")],
+      cues: ["Lie on your back, dumbbells over your shoulders", "Bend only the elbows, weights beside your head", "Straighten the arms back up"],
+    },
+    kickback: {
+      name: "Triceps Kickback", dumbbells: 1, reps: "10–12 reps each side", pattern: "arms",
+      video: V("SKPfoxFc6VE"), alts: [V("xi806yP2EIE", "wide"), V("ShCYaoHmWmk", "wide")],
+      cues: ["Hinge forward, upper arm by your side", "Straighten the elbow back", "Only the forearm moves"],
+    },
+    chairDip: {
+      name: "Chair Dip", dumbbells: 0, reps: "8–12 reps", pattern: "arms",
+      video: V("jDafIn0WMUw"), alts: [V("0326dy_-CzM"), V("CVj69WdL0bk", "wide")],
+      cues: ["Hands on a sturdy chair behind you", "Lower until the elbows reach 90°", "Shoulders down, body close to the chair"],
+    },
+    // core
+    plank: {
+      name: "Plank", dumbbells: 0, reps: "30 sec", pattern: "core", timed: { seconds: 30, sides: ["Hold the plank"] },
+      video: V("nVIeqNLGLa0"), alts: [V("9j8-dM55J0M"), V("DA4GVdjoczs"), V("6xWUlLvltvQ")],
+      cues: ["Elbows under the shoulders", "Squeeze glutes, ribs down", "Straight line, breathe"],
+    },
+    legRaise: {
+      name: "Lying Leg Raise", dumbbells: 0, reps: "10–12 reps", pattern: "core",
+      video: V("4a5pNSb12ok"), alts: [V("SuIxXbKnwx4", "wide"), V("_aUybhb3lZI", "wide")],
+      cues: ["Lie on your back, hands under your hips", "Raise straight legs to vertical", "Lower slowly, low back stays down"],
+    },
+    kneeTuck: {
+      name: "Seated Knee Tuck", dumbbells: 0, reps: "12–15 reps", pattern: "core",
+      video: V("MJscXnIaFWo"), alts: [V("d_up4yEZhFI", "wide"), V("7emz03H7-Bo", "wide")],
+      cues: ["Sit on the edge of a chair or the floor, lean back", "Pull the knees in to your chest", "Reach the legs out without touching down"],
+    },
+    superman: {
+      name: "Superman", dumbbells: 0, reps: "10 reps, 2-sec hold", pattern: "core",
+      video: V("HPFQf4cubhE"), alts: [V("z6PJMT2y8GQ"), V("hhq86gJvrvo", "wide")],
+      cues: ["Lie face down, arms forward", "Lift arms, chest and legs together", "Hold, then lower slowly"],
+    },
+    farmersCarry: {
+      name: "Farmer's Carry", dumbbells: 2, reps: "30 sec", pattern: "core", timed: { seconds: 30, sides: ["Walk tall"] },
+      video: V("hpmLi1Vl13U"), alts: [V("5QclP8MicNU", "wide"), V("AXOrMG1rwu0", "wide")],
+      cues: ["Heavy dumbbell in each hand", "Stand tall, shoulders back", "Short steady steps, don't lean"],
+    },
+    // lower legs and leg isolation
+    calfRaise: {
+      name: "Standing Calf Raise", dumbbells: 1, reps: "15 reps", pattern: "calf",
+      video: V("C8gR_i25oI0"), alts: [V("HvvqTpTongY", "wide"), V("hPA98_r-6e4", "wide")],
+      cues: ["Balls of the feet on a step, heels hanging", "Rise all the way up", "Lower slowly into a stretch"],
+    },
+    seatedCalfRaise: {
+      name: "Seated Calf Raise", dumbbells: 2, reps: "15–20 reps", pattern: "calf",
+      video: V("B5MKjeSeM7g"), alts: [V("4-slnRXcGDc", "wide"), V("uknziZ8i1xk"), V("WGLkpfS5ULE")],
+      cues: ["Sit with dumbbells on your knees", "Toes on a book or step", "Lift the heels high, lower slowly"],
+    },
+    tibialisRaise: {
+      name: "Wall Tibialis Raise", dumbbells: 0, reps: "15–20 reps", pattern: "calf",
+      video: V("h57xceuiO40"), alts: [V("lNpConytJN0"), V("blH9X986nT8"), V("VzIcGAgBiaM", "wide")],
+      cues: ["Back against a wall, feet out in front", "Lift your toes as high as you can", "Lower slowly, don't slap them down"],
+    },
+    sliderCurl: {
+      name: "Towel Hamstring Curl", dumbbells: 0, reps: "8–12 reps", pattern: "legiso",
+      video: V("lVQ-klj7e1Q"), alts: [V("TtCGepVWDQc"), V("cWSsWpuxmYM", "wide"), V("IjFnVz0nR5s", "wide")],
+      cues: ["On your back, heels on a towel on a smooth floor", "Hips up in a bridge", "Slide the heels out and pull them back in"],
+    },
+    legCurl: {
+      name: "Lying Dumbbell Leg Curl", dumbbells: 1, reps: "10–12 reps", pattern: "legiso",
+      video: V("vzla60tdjq0"), alts: [V("zNml2HXif4Y", "wide"), V("ZHlBSI6JPsA", "wide")],
+      cues: ["Lie face down, dumbbell between your feet", "Curl the heels toward your glutes", "Lower slowly, don't let it drop"],
+    },
+    legExtension: {
+      name: "Seated Leg Extension", dumbbells: 1, reps: "12–15 reps", pattern: "legiso",
+      video: V("6t01IIEpm3k"), alts: [V("HpCE66lfEuk"), V("LsHXi8tU0Zc", "wide")],
+      cues: ["Sit on a high chair or couch edge", "Dumbbell held between your feet", "Straighten the knees, squeeze, lower slowly"],
+    },
+    // neck
+    neckIso: {
+      name: "Neck Isometric Holds", dumbbells: 0, reps: "4 × 10 sec", pattern: "neck",
+      timed: { seconds: 10, sides: ["Push forward into your hand", "Push back into your hands", "Push left into your hand", "Push right into your hand"] },
+      video: V("g-xefX0gOTo"), alts: [V("brkZW0fdc5k", "wide"), V("kMAlwI-aS18", "wide")],
+      cues: ["Hand against your head", "Push gently, head doesn't move", "Easy pressure, no pain"],
+    },
+    neckCurl: {
+      name: "Lying Neck Curl", dumbbells: 0, reps: "10–12 reps", pattern: "neck",
+      video: V("lRKWP2LzCmw", "wide"), alts: [V("IvrkmCrQnQE", "wide"), V("RHhaq5q7_mM", "wide")],
+      cues: ["Lie on your back, knees bent", "Tuck the chin, lift the head slightly", "Hold a moment, lower slowly"],
+    },
+  };
+  Object.assign(window.EXERCISES, MORE);
+
 
   // Tags for the existing program moves so the builder can use them too.
   const TAGS: Record<string, string> = {

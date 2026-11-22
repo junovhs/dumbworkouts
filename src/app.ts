@@ -397,7 +397,7 @@
   // menu list = body areas, then your saved sets
   const menuItems = (): MenuItem[] => [...AREAS.map((a) => ({ kind: "area" as const, ...a })), ...savedSets().map((x) => ({ kind: "set" as const, ...x }))];
   const curItem = () => menuItems()[menuArea] || menuItems()[0];
-  const PATTERN_LABEL = { squat: "Squat", hinge: "Hinge", lunge: "Single-leg", bridge: "Bridge", side: "Side glutes", kickback: "Glute isolation", core: "Core", push: "Push", pull: "Pull", arms: "Arms" };
+  const PATTERN_LABEL = { squat: "Squat", hinge: "Hinge", lunge: "Single-leg", bridge: "Bridge", side: "Side glutes", kickback: "Glute isolation", core: "Core", push: "Push", pull: "Pull", arms: "Arms", legiso: "Leg curl / ext.", calf: "Calves & shins", neck: "Neck" };
   const UPPER = ["chest", "shoulders", "back", "arms"];
   function poolFor(area) {
     if (area === "favs") return favs().filter((k) => EX[k]);
@@ -441,7 +441,7 @@
     return targets.filter((m) => any.has(m)).length * 100 + targets.filter((m) => pri.has(m)).length * 10 +
       new Set(set.map((k) => EX[k].pattern)).size * 4 - set.filter((k) => avoid.has(k)).length * 15;
   }
-  const SHOW_ORDER = ["squat", "lunge", "hinge", "bridge", "push", "pull", "arms", "kickback", "side", "core"];
+  const SHOW_ORDER = ["squat", "lunge", "hinge", "bridge", "legiso", "push", "pull", "arms", "kickback", "side", "calf", "core", "neck"];
   const byPattern = (a: string, b: string) => SHOW_ORDER.indexOf(EX[a].pattern) - SHOW_ORDER.indexOf(EX[b].pattern);
 
   // Try many random candidate sets and keep the one that covers the area best (ties keep the first, so shuffles vary).
@@ -671,7 +671,7 @@
   }
   // ---------- browse every move ----------
   let pickFilter = "all";
-  const PICK_ORDER = ["squat", "lunge", "hinge", "bridge", "side", "kickback", "core", "push", "pull", "arms"];
+  const PICK_ORDER = ["squat", "lunge", "hinge", "bridge", "legiso", "side", "kickback", "calf", "core", "push", "pull", "arms", "neck"];
   const pickerOpen = () => !$("picker").classList.contains("hidden");
   function openPicker() {
     $("picker").classList.remove("hidden");
