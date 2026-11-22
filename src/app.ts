@@ -439,7 +439,8 @@
   function coverScore(set: string[], targets: string[], avoid: Set<string>) {
     const { pri, any } = muscleSets(set);
     return targets.filter((m) => any.has(m)).length * 100 + targets.filter((m) => pri.has(m)).length * 10 +
-      new Set(set.map((k) => EX[k].pattern)).size * 4 - set.filter((k) => avoid.has(k)).length * 15;
+      new Set(set.map((k) => EX[k].pattern)).size * 4 - set.filter((k) => avoid.has(k)).length * 15 -
+      set.filter((k) => EX[k].dumbbells === 0).length * 6;   // dumbbell moves first; no-weight ones break ties
   }
   const SHOW_ORDER = ["squat", "lunge", "hinge", "bridge", "legiso", "push", "pull", "arms", "kickback", "side", "calf", "core", "neck"];
   const byPattern = (a: string, b: string) => SHOW_ORDER.indexOf(EX[a].pattern) - SHOW_ORDER.indexOf(EX[b].pattern);
@@ -469,7 +470,7 @@
     const area = menuAreaId(), pool = poolFor(area);
     menuGoal = targetsFor(area, pool);
     menuStart = MM.coverage(menuBase, menuGoal);
-    menuSteps = MM.fillSteps([menuBase], pool.filter((k) => !menuExcluded.has(k)), menuGoal);
+    menuSteps = MM.fillSteps([menuBase], pool.filter((k) => !menuExcluded.has(k)), menuGoal, undefined, (k) => (EX[k].dumbbells === 0 ? 0.3 : 0));
     menuTrims = MM.trimSteps([menuBase], menuGoal, 3);
     applyCover();
   }

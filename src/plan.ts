@@ -11,20 +11,21 @@
     "sumoDeadlift", "kneelingSquat", "floorPress", "lateralRaise", "hammerCurl", "concentrationCurl", "oneArmRow", "rearDeltFly",
     "tricepsExtension", "suitcaseMarch", "marchingBridge", "dumbbellDeadlift", "bentOverRow", "floorFly", "russianTwist",
     "frontRaise", "shrug", "proneYRaise", "bicepsCurl", "reverseCurl", "wristCurl", "kickback", "plank", "kneeTuck", "superman",
-    "farmersCarry", "calfRaise", "seatedCalfRaise", "tibialisRaise", "legCurl", "legExtension", "neckIso"];
+    "farmersCarry", "calfRaise", "seatedCalfRaise", "tibialisRaise", "legCurl", "legExtension", "neckIso",
+    "dragCurl", "bentKneeCalfRaise", "dbTibRaise"];
   const LEVEL3 = ["jumpSquat", "bulgarianSplitSquat", "skaterSquat", "singleLegBoxSquat", "cossackSquat", "singleLegHipThrust",
-    "sidePlankClam", "singleLegRdl", "walkingLunge", "declinePushUp", "pikePushUp", "renegadeRow"];
+    "sidePlankClam", "singleLegRdl", "walkingLunge", "declinePushUp", "pikePushUp", "renegadeRow", "sissySquat"];
   // things people may want to leave out
   const FLAGS: Record<string, string[]> = {
     jump: ["jumpSquat"],
     kneel: ["birdDog", "kneelingSquat", "fireHydrant", "donkeyKick", "rainbowKick"],
     floor: ["gluteBridge", "floorPress", "floorFly", "deadBug", "singleLegBridge", "frogPump", "marchingBridge", "elevatedBridge",
       "clamshell", "sideLyingLegRaise", "sidePlankClam", "proneLegLift", "russianTwist", "birdDog", "donkeyKick", "fireHydrant", "rainbowKick",
-      "pullover", "proneYRaise", "skullCrusher", "plank", "legRaise", "superman", "sliderCurl", "legCurl", "neckCurl"],
+      "pullover", "proneYRaise", "skullCrusher", "plank", "legRaise", "superman", "sliderCurl", "legCurl", "neckCurl", "reverseGripPress"],
     lunge: ["reverseLunge", "splitSquat", "bulgarianSplitSquat", "curtsyLunge", "lateralLunge", "walkingLunge", "lungeKneeDrive",
       "skaterSquat", "singleLegBoxSquat", "cossackSquat", "stepUp"],
     overhead: ["overheadPress", "tricepsExtension", "pullover", "pikePushUp"],
-    balance: ["singleLegRdl", "skaterSquat", "singleLegBoxSquat", "bStanceRdl", "standingKickback", "standingAbduction", "rainbowKick"],
+    balance: ["singleLegCalfRaise", "singleLegRdl", "skaterSquat", "singleLegBoxSquat", "bStanceRdl", "standingKickback", "standingAbduction", "rainbowKick"],
   };
   for (const [k, e] of Object.entries(EX)) {
     e.level = LEVEL1.includes(k) ? 1 : LEVEL3.includes(k) ? 3 : 2;
@@ -85,7 +86,9 @@
     if (!ok.length) return null;
     const lvl = maxLevel(a);
     const havePat = new Set([...used].map((x) => EX[x].pattern));
-    const score = (k) => (havePat.has(EX[k].pattern) ? 25 : 0) +
+    // this is a dumbbell app: with dumbbells on hand, no-weight moves are a soft second choice
+    const bw = (k: string) => (a.dumbbells > 0 && EX[k].dumbbells === 0 ? 6 : 0);
+    const score = (k) => bw(k) + (havePat.has(EX[k].pattern) ? 25 : 0) +
       (EX[k].level <= lvl ? 0 : (EX[k].level - lvl) * 20) + (avoid.has(k) ? 30 : 0) + (seen.get(k) || 0) * 12 + Math.random() * 10 - ((a.likes || []).includes(k) ? 14 : 0);
     return ok.sort((x, y) => score(x) - score(y))[0];
   }
@@ -127,11 +130,16 @@
   function dayFor(k: string, days: string[][]): number {
     // fit = share of the day's moves that work one of this move's muscle groups (0–1); each move a day has
     // over the shortest day costs 0.3, so extras spread out unless a move clearly belongs somewhere
+    // half = lower body or upper body (core counts as neither), so calf raises land on a legs day and neck work
+    // on an upper day even when no move there shares their exact muscle group
     const groupsOf = (x: string) => new Set(EX[x].primary.map((m) => MUS[m].group));
-    const mine = groupsOf(k), minLen = Math.min(...days.map((d) => d.length));
+    const HALF: Record<string, string> = { legs: "lower", butt: "lower", chest: "upper", shoulders: "upper", back: "upper", arms: "upper" };
+    const halvesOf = (x: string) => new Set(EX[x].primary.map((m) => HALF[MUS[m].area]).filter(Boolean));
+    const mine = groupsOf(k), myHalf = halvesOf(k), minLen = Math.min(...days.map((d) => d.length));
     let best = 0, bs = -Infinity;
     days.forEach((d, i) => {
-      const fit = d.length ? d.filter((x) => [...groupsOf(x)].some((g) => mine.has(g))).length / d.length : 0;
+      const share = (f: (x: string) => boolean) => (d.length ? d.filter(f).length / d.length : 0);
+      const fit = share((x) => [...groupsOf(x)].some((g) => mine.has(g))) + 0.5 * share((x) => [...halvesOf(x)].some((h) => myHalf.has(h)));
       const s = fit - (d.length - minLen) * 0.3;
       if (s > bs) { best = i; bs = s; }
     });
@@ -142,7 +150,8 @@
     const all = MM.targets(), reachable = MM.reach(pool).any;
     const goal = all.filter((t) => reachable.has(t));
     const days = plan.days.map((d) => d.moves);
-    const cost = (k: string) => Math.max(0, EX[k].level - lvl) * 1.5 - ((a.likes || []).includes(k) ? 0.5 : 0);
+    const cost = (k: string) => Math.max(0, EX[k].level - lvl) * 1.5 - ((a.likes || []).includes(k) ? 0.5 : 0) +
+      (a.dumbbells > 0 && EX[k].dumbbells === 0 ? 0.3 : 0);
     const steps = MM.fillSteps(days, pool, goal, dayFor, cost);
     const trims = MM.trimSteps(days, goal, 3);
     return { start: MM.coverage(days.flat(), goal), steps, trims, goal, unreachable: all.filter((t) => !reachable.has(t)) };

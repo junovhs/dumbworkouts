@@ -354,6 +354,38 @@
       video: V("lRKWP2LzCmw", "wide"), alts: [V("IvrkmCrQnQE", "wide"), V("RHhaq5q7_mM", "wide")],
       cues: ["Lie on your back, knees bent", "Tuck the chin, lift the head slightly", "Hold a moment, lower slowly"],
     },
+    // second dumbbell options for muscles that had only one main move
+    reverseGripPress: {
+      name: "Reverse-Grip Floor Press", dumbbells: 2, reps: "10–12 reps", pattern: "push",
+      video: V("njKHXAcPEtY"), alts: [V("aMEvoVlmMEg", "wide"), V("G0uxeMB8_xg", "wide"), V("g8OD0teBMb8", "wide")],
+      cues: ["Lie on your back, palms facing your face", "Elbows tucked close to your sides", "Press up and slightly back over the chest"],
+    },
+    dragCurl: {
+      name: "Drag Curl", dumbbells: 2, reps: "10–12 reps", pattern: "arms",
+      video: V("_xfyZ906IsU", "wide"), alts: [V("91hCx3V6Ueo", "wide")],
+      cues: ["Palms up, dumbbells at your thighs", "Drag them up your body, elbows go back", "Squeeze at the top, lower slowly"],
+    },
+    sissySquat: {
+      name: "Dumbbell Sissy Squat", dumbbells: 1, reps: "8–10 reps", pattern: "legiso",
+      video: V("bL91QcnUg8U", "wide"), alts: [V("8cwhoomX_aY", "wide"), V("ppTKqvnM7Kg", "wide")],
+      cues: ["Hold a chair with one hand, dumbbell at your chest", "Rise onto your toes, knees travel forward", "Lean back as you lower, straight line knees to head"],
+      tip: "Too hard? Skip the dumbbell and go half depth",
+    },
+    singleLegCalfRaise: {
+      name: "Single-Leg Calf Raise", dumbbells: 1, reps: "10–12 reps each leg", pattern: "calf",
+      video: V("1D7s-VyLq0Y", "wide"), alts: [V("KcTEGifMTDY", "wide"), V("PTn6icEeH3Y", "wide"), V("lYfI9gd3A8o", "wide")],
+      cues: ["One foot on a step, dumbbell in the same-side hand", "Other hand on a wall", "Full stretch down, all the way up"],
+    },
+    bentKneeCalfRaise: {
+      name: "Bent-Knee Calf Raise", dumbbells: 2, reps: "15 reps", pattern: "calf",
+      video: V("T4UsIAe7WnM", "wide"), alts: [V("C3tLEvqrW4E", "wide"), V("hNV0vvXEA28", "wide")],
+      cues: ["Dumbbells at your sides, knees bent a little", "Keep the bend as you rise", "Up on the toes, lower slowly"],
+    },
+    dbTibRaise: {
+      name: "Seated Dumbbell Tib Raise", dumbbells: 1, reps: "15 reps", pattern: "calf",
+      video: V("xs7wTPl28CE", "wide"), alts: [V("qjKcWZB_eoA", "wide"), V("CF8Kbm44uK4", "wide"), V("gO-KnFIDmLY", "wide")],
+      cues: ["Sit high, light dumbbell on your toes or between the feet", "Pull the toes up toward the shins", "Slow on the way down"],
+    },
   };
   Object.assign(window.EXERCISES, MORE);
 

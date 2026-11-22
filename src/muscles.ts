@@ -86,7 +86,7 @@
     sumoDeadlift: "gluteMax adductors | hamsHip vasti erectors forearmFlexors | grip",
     singleLegRdl: "gluteMax hamsHip | gluteMed erectors abs | deepHip footAnkle antiRotation",
     bStanceRdl: "gluteMax hamsHip | erectors forearmFlexors gluteMed | deepHip grip",
-    goodMorning: "hamsHip gluteMax | erectors abs | posture deepCore",
+    goodMorning: "hamsHip erectors | gluteMax abs | posture deepCore",
     dumbbellDeadlift: "gluteMax hamsHip vasti | erectors forearmFlexors upperTraps midBack | grip posture",
     kneelingSquat: "gluteMax | hamsHip abs |",
     sumoSquat: "gluteMax adductors vasti | abs | posture",
@@ -140,6 +140,12 @@
     legExtension: "rectusFemoris vasti | hipFlexors |",
     neckIso: "neck | upperTraps | posture",
     neckCurl: "neck | abs | posture",
+    reverseGripPress: "upperChest tricepsLateral | midChest frontDelt | rotatorCuff",
+    dragCurl: "bicepsLong brachialis | bicepsShort forearmFlexors | grip",
+    sissySquat: "rectusFemoris vasti | abs | footAnkle",
+    singleLegCalfRaise: "gastrocnemius | soleus | footAnkle deepHip grip",
+    bentKneeCalfRaise: "soleus | gastrocnemius | footAnkle grip",
+    dbTibRaise: "tibialis | | footAnkle",
   };
   const words = (s: string) => s.trim().split(/\s+/).filter(Boolean);
   for (const [k, e] of Object.entries(window.EXERCISES)) {
