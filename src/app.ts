@@ -399,9 +399,17 @@
   const curItem = () => menuItems()[menuArea] || menuItems()[0];
   const PATTERN_LABEL = { squat: "Squat", hinge: "Hinge", lunge: "Single-leg", bridge: "Bridge", side: "Side glutes", kickback: "Glute isolation", core: "Core", push: "Push", pull: "Pull", arms: "Arms", legiso: "Leg curl / ext.", calf: "Calves & shins", neck: "Neck" };
   const UPPER = ["chest", "shoulders", "back", "arms"];
+  // muscles you painted on the body map (null = build for the selected area)
+  let muscleFocus: string[] | null = null, focusRegions: string[] = [];
   function poolFor(area) {
     if (area === "favs") return favs().filter((k) => EX[k]);
     const banned = new Set(nope());
+    if (area === "focus") {
+      // moves whose main muscles are the ones you painted; if that's too few, moves where they help too
+      const fm = new Set(muscleFocus || []), ok = Object.keys(EX).filter((k) => !banned.has(k));
+      const main = ok.filter((k) => EX[k].primary.some((m) => fm.has(m)));
+      return main.length >= 3 ? main : ok.filter((k) => [...EX[k].primary, ...EX[k].secondary].some((m) => fm.has(m)));
+    }
     return Object.keys(EX).filter((k) => !banned.has(k)).filter((k) => {
       const a = EX[k].areas || [];
       if (area === "full" || area === "all") return true;
@@ -428,6 +436,7 @@
   const muscleSets = (set: string[]) => MM.reach(set);
   // everything the area aims at (muscles in its scope + all stabilizers)
   function areaTargets(area: string) {
+    if (area === "focus") return [...(muscleFocus || [])];
     const scope = area in AREA_SCOPE ? AREA_SCOPE[area] : null;
     return MM.targets(scope || undefined);
   }
@@ -464,7 +473,7 @@
   let menuCover: number | null = storedCover();
   let menuBase: string[] = [], menuExtra = new Set<string>(), menuExcluded = new Set<string>();
   let menuSteps: CoverStep[] = [], menuTrims: CoverStep[] = [], menuStart = 0, menuGoal: string[] = [];
-  const menuAreaId = () => { const it = curItem(); return it.kind === "set" ? it.area || "full" : it.id; };
+  const menuAreaId = () => { if (muscleFocus) return "focus"; const it = curItem(); return it.kind === "set" ? it.area || "full" : it.id; };
   // recompute the slider's steps for the current base (call after the base, area or exclusions change)
   function rebuildSteps() {
     const area = menuAreaId(), pool = poolFor(area);
@@ -510,10 +519,11 @@
     // notches where each extra move lands
     $("coverTicks").innerHTML = covTicks(menuTrims, menuSteps, +r.min, +r.max);
     const cant = all.filter((t) => !goal.has(t) && !t.startsWith("s:"));
+    // fixed-size slots only, so dragging the slider never pushes the body map or chips around
     $("coverMeter").innerHTML = `
-      <div class="cov-num"><b>${pct}%</b> <span>${det.full.length} of ${menuGoal.length} fully worked${menuExtra.size ? ` · <em>+${menuExtra.size} move${menuExtra.size > 1 ? "s" : ""} for coverage</em>` : menuSet.length < menuBase.length ? ` · <em>${menuBase.length - menuSet.length} fewer, big movers first</em>` : ""}</span></div>
-      ${covLists(det, menuSet.length > 0)}
-      ${cant.length ? `<div class="cov-gap">No move ${area === "favs" ? "in your favorites" : area === "full" || area === "all" ? "in the library" : "in this area"} trains: ${cant.map(MM.label).join(" · ")}</div>` : ""}`;
+      <div class="cov-num"><b>${pct}%</b> <span>${det.full.length} of ${menuGoal.length} fully worked${menuExtra.size ? ` · <em>+${menuExtra.size} move${menuExtra.size > 1 ? "s" : ""} for coverage</em>` : menuSet.length < menuBase.length ? ` · <em>${menuBase.length - menuSet.length} fewer, big movers first</em>` : ""}</span></div>`;
+    $("coverGap").innerHTML = cant.length ? `No move ${area === "favs" ? "in your favorites" : area === "full" || area === "all" || area === "focus" ? "in the library" : "in this area"} trains: ${cant.map(MM.label).join(" · ")}` : "";
+    renderSetMap(det.work);
   }
   // notches on a slider track (min…100) where moves get dropped (below) or added (above)
   function covTicks(trims: CoverStep[], steps: CoverStep[], min: number, max: number): string {
@@ -583,6 +593,7 @@
     i = ((i % n) + n) % n;
     if (i === menuArea && !force) return;
     menuArea = i;
+    muscleFocus = null; focusRegions = [];
     if (!force) sfx("move");
     const it = curItem();
     document.documentElement.style.setProperty("--accent", it.color);
@@ -601,7 +612,7 @@
   function saveSet() {
     const it = curItem(), sets = savedSets();
     if (!menuSet.length) return;
-    if (it.kind === "set") {
+    if (it.kind === "set" && !muscleFocus) {
       const x = sets.find((y) => y.id === it.id);
       x.moves = [...menuSet];
       store.set("sets", sets);
@@ -610,9 +621,9 @@
       renderMenu();
       return;
     }
-    const name = prompt("Name this workout", `${it.name.replace("♥ ", "")} workout ${sets.filter((x) => x.area === it.id).length + 1}`);
+    const name = prompt("Name this workout", muscleFocus ? `${focusName()} workout` : `${it.name.replace("♥ ", "")} workout ${sets.filter((x) => x.area === it.id).length + 1}`);
     if (!name) return;
-    sets.push({ id: "s" + Date.now().toString(36), name: name.slice(0, 40), area: it.id, color: it.color, moves: [...menuSet] });
+    sets.push({ id: "s" + Date.now().toString(36), name: name.slice(0, 40), area: muscleFocus ? "full" : it.id, color: it.color, moves: [...menuSet] });
     store.set("sets", sets);
     flash("PINNED TO HOME");
     selectArea(AREAS.length + sets.length - 1, true);
@@ -634,14 +645,97 @@
     const k = cands.reduce((a, b) => (score(b) > score(a) ? b : a));
     menuSet[j] = k; menuDirty = true; sfx("tick"); settleEdit(cur); renderMenu();
   }
+  // ---------- builder body map ----------
+  // Each region is shaded by how much work the set gives it (the same numbers the Coverage % uses), so every
+  // move the slider adds or drops shows up right away. The SVG is drawn once and only recolored, so colors fade
+  // instead of the map being rebuilt. Click or drag across regions to build a workout just for those muscles.
+  const regionGroup = (r: string) => (r === "calves" || r.endsWith("soleus") ? "calves" : r);
+  const GROUP_MUS: Record<string, string[]> = {};
+  for (const [m, d] of Object.entries(MUS) as [string, { regions: string[] }][])
+    for (const r of d.regions) (GROUP_MUS[regionGroup(r)] ||= []).includes(m) || GROUP_MUS[regionGroup(r)].push(m);
+  const GROUP_LABEL: Record<string, string> = { chest: "Chest", "front-deltoids": "Shoulders", "back-deltoids": "Rear shoulders",
+    "upper-back": "Upper back", trapezius: "Traps", "lower-back": "Lower back", biceps: "Biceps", triceps: "Triceps",
+    forearm: "Forearms", abs: "Abs", obliques: "Obliques", gluteal: "Glutes", abductors: "Side glutes", adductor: "Inner thighs",
+    quadriceps: "Quads", hamstring: "Hamstrings", calves: "Calves", neck: "Neck" };
+  const focusName = () => {
+    const names = focusRegions.map((g) => GROUP_LABEL[g] || g);
+    return names.length > 3 ? `${names.slice(0, 2).join(" + ")} + ${names.length - 2} more` : names.join(" + ");
+  };
+  function ensureSetMap() {
+    const host = $("setMap");
+    if (host.querySelector(".bm")) return host;
+    const fig = (side: string, h: number) =>
+      `<svg class="bm bm-pick" viewBox="0 0 100 ${h}">` +
+      window.BODY_MAP[side].map(([r, pts]) => {
+        const g = regionGroup(r), live = !!GROUP_MUS[g];
+        return pts.map((pt) => `<polygon points="${pt}"${live ? ` data-g="${g}"` : ' class="skin"'}>${live ? `<title>${GROUP_LABEL[g] || g}</title>` : ""}</polygon>`).join("");
+      }).join("") + `</svg>`;
+    host.innerHTML = `<div class="bm-figs"><div>${fig("front", 200)}<span>Front</span></div><div>${fig("back", 220)}<span>Back</span></div></div>`;
+    wireMapPaint(host);
+    return host;
+  }
+  function renderSetMap(work: Map<string, number>) {
+    const host = ensureSetMap(), sel = new Set(focusRegions);
+    host.querySelectorAll<SVGPolygonElement>("polygon[data-g]").forEach((p) => {
+      const ms = GROUP_MUS[p.dataset.g];
+      const v = Math.max(0, ...ms.map((m) => Math.min(1, work.get(m) || 0)));
+      p.style.setProperty("--w", `${Math.round(v > 0 ? 30 + v * 70 : 0)}%`);
+      p.classList.toggle("sel", sel.has(p.dataset.g));
+    });
+    // one chip per muscle this set aims at, filled by how much work it gets; the list only changes with the area
+    const goal = menuGoal, mus = goal.filter((t) => !t.startsWith("s:")), stab = goal.filter((t) => t.startsWith("s:"));
+    const chip = (t: string) => { const v = Math.min(1, work.get(t) || 0);
+      return `<span class="mchip lv${v >= 1 - 1e-9 ? " full" : v > 0 ? "" : " none"}${t.startsWith("s:") ? " stab" : ""}" style="--w:${Math.round(v * 100)}%" title="${MM.label(t)}: ${Math.round(v * 100)}% worked">${MM.label(t)}</span>`; };
+    $("setMuscles").innerHTML = mus.map(chip).join("") + (stab.length ? `<div class="mchips-h">Stabilizers</div>` + stab.map(chip).join("") : "");
+    $("mapHint").innerHTML = muscleFocus
+      ? `<span>Just <b>${focusName()}</b></span><button class="hud-btn" id="focusClear">✕ Clear</button>`
+      : `<span>Click or drag across the body to build a workout for just those muscles</span>`;
+    if ($("focusClear")) $("focusClear").onclick = () => setMuscleFocus([]);
+  }
+  // paint: press on a region to add it (or remove it, if it was picked), drag to paint more the same way
+  function wireMapPaint(host: HTMLElement) {
+    let painting: null | { add: boolean; regions: Set<string> } = null;
+    const groupAt = (x: number, y: number) => (document.elementFromPoint(x, y) as HTMLElement | null)?.closest?.("polygon[data-g]")?.getAttribute("data-g");
+    const mark = (g: string) => {
+      if (!painting) return;
+      painting.add ? painting.regions.add(g) : painting.regions.delete(g);
+      host.querySelectorAll(`polygon[data-g="${g}"]`).forEach((p) => p.classList.toggle("sel", painting.add));
+    };
+    host.addEventListener("pointerdown", (ev) => {
+      const g = groupAt(ev.clientX, ev.clientY);
+      if (!g) return;
+      ev.preventDefault();
+      painting = { add: !focusRegions.includes(g), regions: new Set(focusRegions) };
+      mark(g);
+    });
+    window.addEventListener("pointermove", (ev) => { if (painting) { const g = groupAt(ev.clientX, ev.clientY); if (g) mark(g); } });
+    const end = () => { if (!painting) return; const r = [...painting.regions]; painting = null; setMuscleFocus(r); };
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }
+  // build a fresh set for the painted regions (none left = back to the selected area)
+  function setMuscleFocus(regions: string[]) {
+    const order = Object.keys(GROUP_LABEL);
+    regions = [...new Set(regions)].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    if (regions.join() === focusRegions.join()) { renderMenu(); return; }
+    focusRegions = regions;
+    muscleFocus = regions.length ? [...new Set(regions.flatMap((g) => GROUP_MUS[g]))] : null;
+    const it = curItem();
+    // a painted workout starts as built (a few target muscles would let the slider trim it to almost nothing)
+    menuCover = !muscleFocus && it.kind !== "set" ? storedCover() : null;
+    setBase(muscleFocus ? buildSet("focus") : it.kind === "set" ? it.moves.filter((k) => EX[k]) : it.id === "all" ? [] : buildSet(it.id));
+    menuDirty = !!muscleFocus;
+    sfx("tick");
+    renderMenu();
+  }
   function renderMenu() {
     const area = curItem(), items = menuItems(), fv = favs();
     $("areas").innerHTML = items.map((a, i) => `${i === AREAS.length ? '<div class="areas-h">Pinned workouts</div>' : ""}
       <button class="area${a.kind === "set" ? " saved" : ""}${i === menuArea ? " on" : ""}" data-i="${i}" style="--c:${a.color}">
         <b>${a.name}</b><span>${a.kind === "set" ? `${a.moves.length} moves · pinned to home` : a.id === "favs" && !fv.length ? "Tap ♡ on any move to add it" : `${poolFor(a.id).length} moves · ${a.blurb}`}</span>
       </button>`).join("");
-    $("areas").querySelectorAll<UIElement>(".area").forEach((b) => (b.onclick = () => selectArea(+b.dataset.i)));
-    $("setTitle").textContent = area.kind === "set" ? area.name : `${area.name.replace("♥ ", "")} workout`;
+    $("areas").querySelectorAll<UIElement>(".area").forEach((b) => (b.onclick = () => selectArea(+b.dataset.i, !!muscleFocus)));
+    $("setTitle").textContent = muscleFocus ? `${focusName()} workout` : area.kind === "set" ? area.name : `${area.name.replace("♥ ", "")} workout`;
     $("setSub").textContent = menuSet.length ? `${menuSet.length} move${menuSet.length > 1 ? "s" : ""} · ${settings.rounds} round${settings.rounds > 1 ? "s" : ""} · ${minutesFor(settings.rounds, menuSet.length)}` : "";
     $("setList").innerHTML = menuSet.map((k, j) => {
       const e = EX[k], v = previewVideo(k);
@@ -660,17 +754,12 @@
     $("setList").querySelectorAll<UIElement>(".sfav").forEach((b) => (b.onclick = () => { toggleFav(b.dataset.k); sfx("tick"); renderMenu(); }));
     if (!menuSet.length) $("setList").innerHTML = `<li class="sempty">${area.id === "favs" ? "No favorites yet. Pick any body area and tap ♡ on the moves you like, or press H during a workout." : `Nothing picked yet. <button class="hud-btn" id="emptyAdd">＋ Browse all ${poolFor("all").length} moves</button>`}</li>`;
     if ($("emptyAdd")) $("emptyAdd").onclick = openPicker;
-    $("saveSetBtn").innerHTML = area.kind === "set" ? `✓ Save changes` : `📌 Pin to home`;
-    $("saveSetBtn").disabled = area.kind === "set" ? !menuDirty : !menuSet.length;
+    const editing = area.kind === "set" && !muscleFocus;
+    $("saveSetBtn").innerHTML = editing ? `✓ Save changes` : `📌 Pin to home`;
+    $("saveSetBtn").disabled = editing ? !menuDirty : !menuSet.length;
     $("delSetBtn").classList.toggle("hidden", area.kind !== "set");
     $("setList").querySelectorAll<UIElement>(".sthumb").forEach((img) => setImg(img, previewVideo(img.dataset.k)));
-    const pri = new Set(menuSet.flatMap((k) => EX[k].primary));
-    const sec = new Set(menuSet.flatMap((k) => EX[k].secondary).filter((m) => !pri.has(m)));
-    const stab = new Set(menuSet.flatMap((k) => EX[k].stab));
-    $("setMap").innerHTML = bodyMap([...pri], [...sec]);
-    $("setMuscles").innerHTML = [...pri].map((m) => `<span class="mchip pri">${MUS[m].name}</span>`).join("") + [...sec].map((m) => `<span class="mchip">${MUS[m].name}</span>`).join("") +
-      (stab.size ? `<div class="mchips-h">Stabilizers</div>` + [...stab].map((s) => `<span class="mchip stab" title="${STAB[s].does}">${STAB[s].name}</span>`).join("") : "");
-    renderCoverage(area.kind === "set" ? area.area || "full" : area.id);
+    renderCoverage(menuAreaId());
     segmented($("menuRounds"), [[1, "1"], [2, "2"], [3, "3"]], settings.rounds, (r) => { settings.rounds = r; save("rounds"); renderMenu(); });
   }
   // ---------- browse every move ----------

@@ -226,6 +226,21 @@ kbd {
 .cov-ticks i { position: absolute; width: 2px; height: 6px; margin-left: -1px; border-radius: 1px; background: rgba(255,255,255,.35); }
 .cov-ends { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .cov-meter { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+/* builder panel: every slot has a fixed size so the slider never moves anything else */
+.coverage .cov-meter { height: 42px; overflow: hidden; }
+.coverage .cov-num { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; }
+.coverage .cov-num span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4; }
+.map-hint { width: 100%; height: 34px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: var(--muted); text-align: center; line-height: 1.3; }
+.map-hint span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.map-hint b { color: #fff; }
+.map-hint .hud-btn { font-size: 12px; padding: 4px 10px; flex: none; }
+.bm-pick { touch-action: none; user-select: none; -webkit-user-select: none; }
+.bm-pick polygon[data-g] { cursor: pointer; fill: color-mix(in srgb, var(--accent) var(--w, 0%), rgba(255,255,255,.2)); transition: fill .35s ease, stroke .15s; }
+.bm-pick polygon[data-g]:hover { stroke: rgba(255,255,255,.8); stroke-width: .8; }
+.bm-pick polygon.sel { stroke: #fff; stroke-width: 1.2; }
+.mchip.lv { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 45%, transparent) var(--w), rgba(255,255,255,.06) var(--w)); color: rgba(255,255,255,.8); transition: background .35s; }
+.mchip.lv.full { background: color-mix(in srgb, var(--accent) 45%, transparent); color: #fff; }
+.mchip.lv.none { color: rgba(255,255,255,.35); }
 .cov-bar { height: 10px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
 .cov-bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); transition: width .35s ease; }
 .cov-miss b { color: rgba(255,255,255,.85); }
@@ -247,7 +262,7 @@ kbd {
   .areas { flex-direction: row; flex-wrap: wrap; }
   .area { flex: 1 1 140px; }
   .area.on { transform: none; }
-  .coverage .cov-works, .coverage #setMap, .coverage #setMuscles { display: none; }
+  .coverage .cov-works, .coverage #setMap, .coverage #setMuscles, .coverage #mapHint { display: none; }
 }
 
 /* ---------------- SESSION ---------------- */
